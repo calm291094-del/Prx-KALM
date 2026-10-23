@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Kalm — Navegador</title>
-<meta name="description" content="Kalm: proxy web en un solo archivo HTML. Túnel WISP sobre WebSocket, sin Service Workers, listo para GitHub Pages.">
+<meta name="description" content="Kalm: proxy web en un solo archivo HTML. Funciona al abrir, sin configurar nada: túnel WISP con respaldo automático por proxy público. Listo para GitHub Pages.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%237c5cff'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='4' y='4' width='56' height='56' rx='16' fill='url(%23g)'/%3E%3Cpath d='M20 18v28M20 32l16-14M22 34l18 12' stroke='%23fff' stroke-width='6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 <style>
 :root{
@@ -209,7 +209,7 @@ details summary{cursor:pointer; font-size:12.5px; font-weight:700; color:var(--t
   <div class="boot-inner">
     <svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lgBoot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs><rect x="4" y="4" width="56" height="56" rx="16" fill="url(#lgBoot)"/><path d="M20 18v28M20 32l16-14M22 34l18 12" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/><circle cx="47" cy="19" r="4.5" fill="#fff" opacity=".92"/></svg>
     <div class="boot-name">Kalm</div>
-    <div class="boot-sub">tu navegador dentro del navegador</div>
+    <div class="boot-sub">listo al abrir · sin configurar nada</div>
     <div class="boot-bar"><i></i></div>
   </div>
 </div>
@@ -235,31 +235,18 @@ details summary{cursor:pointer; font-size:12.5px; font-weight:700; color:var(--t
     <div class="hero">
       <div class="logo"><svg viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="lgHero" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c5cff"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs><rect x="4" y="4" width="56" height="56" rx="16" fill="url(#lgHero)"/><path d="M20 18v28M20 32l16-14M22 34l18 12" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none"/><circle cx="47" cy="19" r="4.5" fill="#fff" opacity=".92"/></svg></div>
       <h1>Kalm</h1>
-      <p class="tag">Navegador dentro del navegador · un solo archivo HTML · sin Service Workers</p>
+      <p class="tag">Navegador dentro del navegador · funciona al abrir · un solo archivo HTML</p>
       <form id="heroForm" class="hero-form glass" autocomplete="off">
         <input id="heroAddr" type="text" placeholder="http://visuales.uclv.edu.cu" spellcheck="false">
         <button class="btn accent" type="submit">Navegar</button>
       </form>
       <div id="quick" class="chips"></div>
-      <div id="setupCard" class="setup glass hidden">
-        <h3><span class="dotv"></span>Configura tu túnel WISP</h3>
-        <ol>
-          <li>Consigue o despliega un servidor WISP (por ejemplo <b>Epsilon</b> o <b>wisp-js</b>).</li>
-          <li>Pega su dirección WebSocket aquí (usa <b>wss://</b> si alojas Kalm en GitHub Pages).</li>
-          <li>Guarda y navega: el tráfico viaja dentro del túnel, como un archivo estático más.</li>
-        </ol>
-        <div class="setup-row">
-          <input id="setupWisp" type="text" placeholder="wss://tu-servidor-wisp/" spellcheck="false">
-          <button id="setupBtn" class="btn accent" type="button">Conectar</button>
-        </div>
-        <p class="hint">Kalm funciona como página estática: para el firewall solo cargas un HTML; las peticiones salen por el túnel WebSocket.</p>
-      </div>
       <div class="feats">
-        <span class="feat">Túnel WISP sobre WebSocket</span>
-        <span class="feat">Descargas comprimidas 00001.zip, 00002.zip…</span>
-        <span class="feat">Sin Service Worker</span>
-        <span class="feat">Sin dependencias externas</span>
-        <span class="feat">Listo para GitHub Pages</span>
+        <span class="feat">Funciona al abrir · sin configurar nada</span>
+        <span class="feat">Abre visuales.uclv.edu.cu por defecto</span>
+        <span class="feat">Descargas ZIP: 00001.zip, 00002.zip…</span>
+        <span class="feat">Túnel WISP + respaldo por proxy</span>
+        <span class="feat">Sin Service Worker · GitHub Pages</span>
       </div>
     </div>
   </section>
@@ -280,10 +267,10 @@ details summary{cursor:pointer; font-size:12.5px; font-weight:700; color:var(--t
 
 <footer id="statusbar">
   <span id="statusDot" class="dot off"></span>
-  <span id="statusMsg">Sin túnel configurado</span>
+  <span id="statusMsg">Listo · automático (túnel WISP + respaldo proxy)</span>
   <span class="spacer"></span>
   <span id="statusRes"></span>
-  <span class="v">Kalm v1.0</span>
+  <span class="v">Kalm v1.1</span>
 </footer>
 
 <aside id="panelDl" class="panel" aria-label="Descargas">
@@ -309,9 +296,15 @@ details summary{cursor:pointer; font-size:12.5px; font-weight:700; color:var(--t
 <dialog id="dlgSet">
   <form id="setForm" class="dcard" onsubmit="return false">
     <h3>Ajustes</h3>
-    <label for="setWisp">Servidor WISP (túnel)</label>
-    <input id="setWisp" type="text" placeholder="wss://tu-servidor-wisp/" spellcheck="false">
-    <p class="hint">Debe hablar el protocolo WISP (Epsilon, wisp-js, RubyVISP…). Si alojas Kalm en HTTPS (GitHub Pages) usa wss://; con ws:// el navegador lo bloqueará por contenido mixto.</p>
+    <label for="setMode">Modo de conexión</label>
+    <select id="setMode">
+      <option value="auto">Automático (recomendado) — túnel WISP y, si falla, proxy público</option>
+      <option value="proxy">Solo proxy público — sin túnel, navegación GET</option>
+      <option value="wisp">Solo túnel WISP — si tienes tu propio servidor</option>
+    </select>
+    <label for="setWisp">Servidor WISP (opcional)</label>
+    <input id="setWisp" type="text" placeholder="Vacío = servidor público por defecto" spellcheck="false">
+    <p class="hint">Kalm ya viene listo: no necesitas rellenar nada. Si despliegas tu propio servidor WISP (Epsilon, wisp-js, wisp-server-python…), pégalo aquí. En HTTPS (GitHub Pages) debe ser wss://; con ws:// el navegador lo bloquearía por contenido mixto.</p>
     <div class="row"><button id="setTest" class="btn ghost sm" type="button">Probar conexión</button><span id="setTestOut"></span></div>
     <label for="setQuick">Enlaces rápidos — uno por línea: Nombre | http://url</label>
     <textarea id="setQuick" rows="4" spellcheck="false"></textarea>
@@ -320,15 +313,16 @@ details summary{cursor:pointer; font-size:12.5px; font-weight:700; color:var(--t
     <details>
       <summary>Cómo funciona Kalm · despliegue · limitaciones</summary>
       <div class="about">
-        <div><b>Cómo funciona:</b> Kalm es un único archivo estático. Al navegar, abre un túnel WebSocket a tu servidor WISP y habla HTTP/1.1 dentro de ese túnel. El HTML/CSS que recibe se reescribe (imágenes, CSS, scripts → blob URLs) y se pinta en un iframe sandbox. Para la red, solo cargas una página de GitHub Pages: no hay Service Worker ni rutas de proxy.</div>
+        <div><b>Cómo funciona:</b> Kalm es un único archivo estático y ya viene listo: abre <code>visuales.uclv.edu.cu</code> al cargar. Intenta hablar HTTP/1.1 dentro de un túnel WISP (por defecto, el servidor público de Mercury Workshop) y, si no está disponible, cambia solo a un proxy público de respaldo (allOrigins → CodeTabs → corsproxy.io). El HTML/CSS recibido se reescribe (imágenes, CSS, scripts → blob URLs) y se pinta en un iframe sandbox. Para la red, solo cargas una página de GitHub Pages: no hay Service Worker ni rutas de proxy.</div>
         <div><b>Despliegue:</b> sube <code>Kalm.html</code> a un repositorio público y activa <code>Settings → Pages → main /root</code>. Tu proxy quedará en <code>https://tuusuario.github.io/tu-repo/</code>.</div>
-        <div><b>Servidores WISP compatibles:</b> <code>Epsilon</code> (Rust), <code>@mercuryworkshop/wisp-js</code> (npm, incluye CLI: <code>npx wisp-js-server</code>), <code>RubyVISP</code>, o cualquiera compatible con WISP v1.</div>
+        <div><b>Modos:</b> <code>Automático</code> prueba el túnel WISP primero y usa el proxy si falla; <code>Solo proxy</code> funciona aunque tu red bloquee WebSockets; <code>Solo WISP</code> exige tu propio servidor. Los sitios HTTPS se abren por el respaldo proxy (el túnel transporta HTTP en claro) y, si fallan, ofrecen modo directo.</div>
         <div><b>Descargas:</b> todo lo que descargues se empaqueta automáticamente como ZIP secuencial (00001.zip, 00002.zip…). El nombre original queda dentro del ZIP y en el panel de descargas.</div>
-        <div><b>Limitaciones honestas:</b> el túnel solo puede hablar HTTP en claro: los sitios <b>https://</b> no se pueden renderizar dentro del túnel (se ofrece modo directo/pestaña nueva). Los formularios con subida de archivos no están soportados; sitios con mucho JavaScript dinámico pueden fallar; los archivos enormes se procesan en memoria.</div>
+        <div><b>Limitaciones honestas:</b> el respaldo por proxy solo admite GET (los formularios POST requieren el túnel WISP) y no envía cookies ni cabeceras propias; el servidor WISP público limita el ancho de banda; los archivos muy grandes dependen de los límites del proxy; los sitios con mucho JavaScript dinámico pueden fallar; los archivos se procesan en memoria.</div>
         <div><b>Uso responsable:</b> el volumen de datos sigue pasando por tu red y queda registrado en sus logs. Respeta las políticas de tu institución: el uso de esta herramienta es responsabilidad tuya.</div>
       </div>
     </details>
     <menu>
+      <button id="setReset" class="btn ghost" type="button">Restaurar</button>
       <button id="setClose" class="btn ghost" type="button">Cerrar</button>
       <button id="setSave" class="btn accent" type="button">Guardar</button>
     </menu>
@@ -339,8 +333,9 @@ details summary{cursor:pointer; font-size:12.5px; font-weight:700; color:var(--t
 <script>
 "use strict";
 /* ============================================================
-   Kalm v1.0 — Navegador dentro del navegador en un solo archivo
-   Túnel: protocolo WISP v1 sobre WebSocket (sin Service Worker)
+   Kalm v1.1 — Navegador dentro del navegador en un solo archivo
+   Modo automático: túnel WISP v1 sobre WebSocket con respaldo por
+   proxies CORS públicos. Sin Service Worker · sin configuración.
    ============================================================ */
 
 /* ---------- utilidades básicas ---------- */
@@ -685,7 +680,7 @@ class WispTransport {
           try { ws.close(); } catch(e){}
           reject(new Error("Tiempo de espera al conectar con el servidor WISP"));
         }
-      }, 15000);
+      }, 9000);
       ws.onopen = () => {
         this.ws = ws; clearTimeout(to);
         if (!settled){ settled = true; this.opening = null; this._state("on"); resolve(); }
@@ -763,9 +758,10 @@ class WispTransport {
 </script>
 <script>
 /* ============================================================
-   MOTOR HTTP/1.1 sobre el túnel WISP
+   MOTOR HTTP/1.1 — túnel WISP + respaldo por proxies CORS
    ============================================================ */
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Kalm/1.0";
+const DEFAULT_WISP = "wss://wisp.mercurywork.shop/";
+const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36 Kalm/1.1";
 const ACCEPT_HTML = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8";
 const ACCEPT_ANY = "*/*";
 const httpSem = new Sem(10);
@@ -983,15 +979,92 @@ async function httpViaWisp(t, u, opts){
   }
 }
 
+/* --- respaldo: proxies CORS públicos (fetch normal, funcionan http y https) --- */
+const PROXIES = [
+  { name: "allOrigins", build: (u) => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u) },
+  { name: "CodeTabs", build: (u) => "https://api.codetabs.com/v1/proxy/?quest=" + encodeURIComponent(u) },
+  { name: "corsproxy.io", build: (u) => "https://corsproxy.io/?url=" + encodeURIComponent(u) }
+];
+const PROXY_TIMEOUT = 45000;
+
+async function httpViaProxy(u){
+  let lastErr = null;
+  for (const p of PROXIES){
+    try {
+      const ctl = new AbortController();
+      const to = setTimeout(() => ctl.abort(), PROXY_TIMEOUT);
+      let resp;
+      try {
+        resp = await fetch(p.build(u.href), { signal: ctl.signal, redirect: "follow", credentials: "omit", referrerPolicy: "no-referrer" });
+      } finally { clearTimeout(to); }
+      /* un 5xx suele ser fallo del propio proxy → probamos el siguiente;
+         los 4xx del sitio destino se devuelven como respuesta normal */
+      if (resp.status >= 500) throw new Error("proxy " + p.name + " respondió " + resp.status);
+      const buf = new Uint8Array(await resp.arrayBuffer());
+      const headers = {};
+      resp.headers.forEach((v, k) => { if (!(k in headers)) headers[k] = v; });
+      const ct = parseMime(headers["content-type"] || "");
+      const finalUrl = resp.url || u.href;
+      return {
+        status: resp.status,
+        statusText: resp.statusText || "",
+        headers,
+        setCookies: [],
+        bytes: buf,
+        url: finalUrl,
+        mime: ct.mime || guessMime(u.href),
+        charset: ct.charset,
+        via: p.name
+      };
+    } catch(e){ lastErr = e; }
+  }
+  throw new Error("Ningún proxy de respaldo respondió (" + ((lastErr && lastErr.message) || "error de red") + ")");
+}
+
+let wispCooldownUntil = 0;
+const WISP_COOLDOWN_MS = 120000;
+
 const engine = {
   async request(url, opts = {}){
-    const t = getTransport();
-    if (!t) throw new Error("No hay servidor WISP configurado. Ábrelo en Ajustes.");
     let cur;
     try { cur = new URL(url); } catch(e){ throw new Error("Dirección no válida: " + url); }
-    if (cur.protocol === "https:"){
-      throw new Error("El túnel WISP solo transporta HTTP en claro. Para HTTPS usa el modo directo (abre la dirección y elige una opción).");
+    if (cur.protocol !== "http:" && cur.protocol !== "https:"){
+      throw new Error("Esquema no soportado: " + cur.protocol);
     }
+    const mode = Store.get("mode", "auto");
+    const wispUrl = Store.get("wisp", DEFAULT_WISP);
+
+    if (mode === "wisp"){
+      if (cur.protocol === "https:"){
+        throw new Error("El modo «solo WISP» no puede abrir sitios HTTPS (el túnel transporta HTTP en claro). Cambia a automático en Ajustes.");
+      }
+      return await this._viaWisp(cur, opts);
+    }
+
+    let wispErr = null;
+    if (mode !== "proxy" && wispUrl && cur.protocol === "http:" && Date.now() >= wispCooldownUntil){
+      try {
+        const r = await this._viaWisp(cur, opts);
+        wispCooldownUntil = 0;
+        return r;
+      } catch(e){
+        wispErr = e;
+        wispCooldownUntil = Date.now() + WISP_COOLDOWN_MS; /* 2 min de respaldo antes de reintentar el túnel */
+      }
+    }
+
+    try {
+      return await this._viaProxy(cur, opts);
+    } catch(e){
+      if (wispErr){
+        throw new Error("Túnel WISP falló («" + ((wispErr && wispErr.message) || e) + "») y el respaldo por proxy también («" + ((e && e.message) || e) + "»). Puedes probar el modo directo o revisar Ajustes.");
+      }
+      throw e;
+    }
+  },
+  async _viaWisp(cur, opts){
+    const t = getTransport();
+    if (!t) throw new Error("No hay túnel WISP disponible");
     let method = (opts.method || "GET").toUpperCase();
     let body = opts.body != null ? opts.body : null;
     let ctype = opts.contentType || null;
@@ -1015,7 +1088,8 @@ const engine = {
         try { nxt = new URL(loc, cur); } catch(e){}
         if (nxt && (nxt.protocol === "http:" || nxt.protocol === "https:")){
           if (nxt.protocol === "https:"){
-            throw new Error("El sitio redirige a HTTPS, que no puede renderizarse dentro del túnel. Prueba el modo directo.");
+            /* el túnel no habla TLS: el resto del recorrido va por el respaldo proxy */
+            return await this._viaProxy(nxt, opts);
           }
           if (res.status === 303 || ((res.status === 301 || res.status === 302) && method !== "GET")){
             method = "GET"; body = null; ctype = null;
@@ -1026,11 +1100,22 @@ const engine = {
       }
       return res;
     }
+  },
+  async _viaProxy(cur, opts){
+    if ((opts.method || "GET").toUpperCase() !== "GET"){
+      throw new Error("El respaldo por proxy solo admite GET; los formularios POST requieren el túnel WISP.");
+    }
+    engineStats.active++;
+    try {
+      return await httpSem.run(() => httpViaProxy(cur));
+    } finally {
+      engineStats.active--;
+    }
   }
 };
 
 function getTransport(){
-  const url = Store.get("wisp", "");
+  const url = Store.get("wisp", DEFAULT_WISP);
   if (!url) return null;
   if (!_transport || _transport.url !== url){
     _transport = new WispTransport(url);
@@ -1245,7 +1330,6 @@ async function deliverDownload(res){
   return zipAndSave(res.bytes, name, res.url);
 }
 async function downloadUrl(url){
-  if (!getTransport()){ toast("Configura tu servidor WISP primero", "warn"); openSettings(); return; }
   toast("Preparando descarga…");
   try {
     const res = await engine.request(url, { accept: ACCEPT_ANY });
@@ -1480,7 +1564,12 @@ async function processPageRes(res, depth){
 /* ============================================================
    INTERFAZ: NAVEGACIÓN · PANELES · AJUSTES · ARRANQUE
    ============================================================ */
-const DEFAULT_QUICK = [["Visuales UCLV", "http://visuales.uclv.edu.cu/"], ["Ejemplo", "http://example.com/"]];
+const DEFAULT_QUICK = [
+  ["Visuales UCLV", "http://visuales.uclv.edu.cu/"],
+  ["Wikipedia", "https://es.wikipedia.org/"],
+  ["Ejemplo", "http://example.com/"]
+];
+const DEFAULT_HOME = "http://visuales.uclv.edu.cu/";
 
 let currentUrl = null;
 let currentTitle = "";
@@ -1499,17 +1588,20 @@ function showOnly(id){
 }
 function setProgress(on){ $("#progress").classList.toggle("hidden", !on); }
 function idleStatus(){
-  const u = Store.get("wisp", "");
-  return u ? { msg: "Túnel listo: " + u, cls: "off" } : { msg: "Sin túnel configurado", cls: "off" };
+  const mode = Store.get("mode", "auto");
+  if (mode === "proxy") return { msg: "Listo · modo proxy público", cls: "off" };
+  if (mode === "wisp") return { msg: "Listo · modo túnel WISP", cls: "off" };
+  return { msg: "Listo · automático (túnel WISP + respaldo proxy)", cls: "off" };
 }
 function setStatus(msg, cls){
   $("#statusMsg").textContent = msg || idleStatus().msg;
   if (cls) $("#statusDot").className = "dot " + cls;
 }
 function onTunnelState(s){
-  if (s === "on") setStatus("Túnel WISP conectado", "on");
-  else if (s === "off") setStatus("Túnel WISP desconectado", "err");
-  else if (s === "err") setStatus("Error de túnel WISP", "err");
+  const auto = Store.get("mode", "auto") === "auto";
+  if (s === "on"){ wispCooldownUntil = 0; setStatus("Túnel WISP conectado", "on"); }
+  else if (s === "err") setStatus(auto ? "Túnel WISP no disponible · usando respaldo por proxy" : "Error de túnel WISP", auto ? "wait" : "err");
+  else if (s === "off") setStatus(auto ? "Túnel WISP cerrado · respaldo por proxy activo" : "Túnel WISP desconectado", auto ? "wait" : "err");
 }
 function shortUrl(u){
   try { const x = new URL(u); return x.host + (x.pathname && x.pathname !== "/" ? x.pathname : ""); }
@@ -1537,17 +1629,16 @@ function normalizeNavUrl(u){
 async function navigate(url, opts = {}){
   url = String(url || "").trim();
   if (!url) return;
-  if (/^https:/i.test(url)){ showHttpsCard(url); return; }
+  if (/^https?:\/\/visuales\.uclv\.cu(\/|$)/i.test(url)) url = url.replace(/visuales\.uclv\.cu/i, "visuales.uclv.edu.cu");
   if (!/^https?:/i.test(url)){
-    toast("Esquema no soportado. Usa http://", "warn");
+    toast("Esquema no soportado. Usa http:// o https://", "warn");
     return;
   }
-  if (!getTransport()){ toast("Configura primero tu servidor WISP", "warn"); openSettings(); return; }
 
   const token = ++navToken;
   setProgress(true);
   $("#addr").value = url;
-  setStatus("Conectando por el túnel…", "wait");
+  setStatus("Conectando…", "wait");
   try {
     const res = await engine.request(url, {
       method: opts.method,
@@ -1656,7 +1747,8 @@ function showViewer(res){
 
 function showError(err, url){
   const msg = (err && err.message) || String(err);
-  const cfgFail = /WISP|túnel/i.test(msg);
+  const cfgFail = /WISP|túnel|proxy/i.test(msg);
+  const isHttps = /^https:/i.test(url || "");
   const box = $("#errBox");
   box.innerHTML = '<div class="err-card glass">'
     + '<div class="eicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>'
@@ -1666,6 +1758,7 @@ function showError(err, url){
     + '<div class="err-actions">'
     + '<button class="btn accent" data-act="retry">Reintentar</button>'
     + (cfgFail ? '<button class="btn" data-act="settings">Abrir ajustes</button>' : '')
+    + (isHttps ? '<button class="btn" data-act="direct">Modo directo</button>' : '')
     + '<button class="btn ghost" data-act="home">Inicio</button>'
     + '</div></div>';
   setView("view");
@@ -1676,37 +1769,10 @@ function showError(err, url){
       const act = b.getAttribute("data-act");
       if (act === "retry") navigate(url);
       else if (act === "settings") openSettings();
+      else if (act === "direct") showDirectFrame(url);
       else goHome();
     });
   });
-}
-
-function showHttpsCard(url){
-  const box = $("#errBox");
-  box.innerHTML = '<div class="err-card glass">'
-    + '<div class="eicon" style="background:rgba(251,191,36,.12); color:var(--warn)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>'
-    + '<h2>Sitio HTTPS</h2>'
-    + '<p>El túnel WISP transporta HTTP en claro y no puede descifrar HTTPS. Puedes intentar mostrarlo dentro de Kalm de forma directa (sin túnel) o abrirlo en una pestaña nueva.</p>'
-    + '<div class="eurl">' + esc(url) + '</div>'
-    + '<div class="err-actions">'
-    + '<button class="btn" data-act="direct">Intentar dentro de Kalm</button>'
-    + '<button class="btn accent" data-act="newtab">Abrir en pestaña nueva</button>'
-    + '<button class="btn ghost" data-act="home">Inicio</button>'
-    + '</div>'
-    + '<p class="hint" style="margin-top:12px">Si la pantalla queda en blanco, el sitio bloquea ser embebido (X-Frame-Options).</p>'
-    + '</div>';
-  setView("view");
-  showOnly("errBox");
-  $("#addr").value = url;
-  $("#schemeChip").textContent = "HTTPS";
-  $("#schemeChip").className = "chip direct";
-  setStatus("HTTPS requiere modo directo", "wait");
-  box.querySelectorAll("[data-act]").forEach((b) => b.addEventListener("click", () => {
-    const act = b.getAttribute("data-act");
-    if (act === "newtab"){ try { window.open(url, "_blank", "noopener"); } catch(e){} }
-    else if (act === "direct") showDirectFrame(url);
-    else goHome();
-  }));
 }
 
 function showDirectFrame(url){
@@ -1885,7 +1951,8 @@ function applyTheme(){
   document.documentElement.setAttribute("data-theme", Store.get("theme", "dark"));
 }
 function openSettings(){
-  $("#setWisp").value = Store.get("wispRaw", Store.get("wisp", ""));
+  $("#setWisp").value = Store.get("wispRaw", "");
+  $("#setMode").value = Store.get("mode", "auto");
   $("#setQuick").value = Store.get("quick", DEFAULT_QUICK).map((q) => q[0] + " | " + q[1]).join("\n");
   $("#setTheme").value = Store.get("theme", "dark");
   const out = $("#setTestOut");
@@ -1895,9 +1962,10 @@ function openSettings(){
 }
 function saveSettings(){
   const raw = $("#setWisp").value.trim();
-  const url = normalizeWispUrl(raw);
+  const url = raw ? normalizeWispUrl(raw) : DEFAULT_WISP;
   Store.set("wispRaw", raw);
   Store.set("wisp", url);
+  Store.set("mode", $("#setMode").value || "auto");
   _transport = null;
   const quick = $("#setQuick").value.split("\n")
     .map((l) => { const i = l.indexOf("|"); return i > 0 ? [l.slice(0, i).trim(), l.slice(i + 1).trim()] : null; })
@@ -1909,7 +1977,6 @@ function saveSettings(){
   $("#dlgSet").close();
   const st = idleStatus();
   setStatus(st.msg, st.cls);
-  $("#setupCard").classList.toggle("hidden", !!url);
   toast("Ajustes guardados", "ok");
 }
 async function testConnection(){
@@ -1920,7 +1987,7 @@ async function testConnection(){
   out.style.color = "";
   const tmp = new WispTransport(url);
   try {
-    await withTimeout(tmp.ensure(), 16000, "Tiempo de espera agotado");
+    await withTimeout(tmp.ensure(), 12000, "Tiempo de espera agotado");
     out.textContent = "Conectado correctamente";
     out.style.color = "var(--ok)";
   } catch(e){
@@ -1975,7 +2042,6 @@ function boot(){
   updateNavBtns();
   const st = idleStatus();
   setStatus(st.msg, st.cls);
-  $("#setupCard").classList.toggle("hidden", !!Store.get("wisp", ""));
 
   $("#btnBack").addEventListener("click", goBack);
   $("#btnFwd").addEventListener("click", goFwd);
@@ -1993,20 +2059,19 @@ function boot(){
   $("#btnStar").addEventListener("click", toggleBookmark);
   $("#btnDl").addEventListener("click", () => togglePanel("panelDl"));
   $("#btnSet").addEventListener("click", openSettings);
-  $("#setupBtn").addEventListener("click", () => {
-    const url = normalizeWispUrl($("#setupWisp").value);
-    if (!url){ toast("Escribe la dirección de tu servidor WISP", "warn"); return; }
-    Store.set("wispRaw", $("#setupWisp").value.trim());
-    Store.set("wisp", url);
-    _transport = null;
-    $("#setupCard").classList.add("hidden");
-    const s2 = idleStatus();
-    setStatus(s2.msg, s2.cls);
-    toast("Servidor guardado. ¡Listo para navegar!", "ok");
-  });
   $("#setSave").addEventListener("click", saveSettings);
   $("#setClose").addEventListener("click", () => $("#dlgSet").close());
   $("#setTest").addEventListener("click", testConnection);
+  $("#setReset").addEventListener("click", () => {
+    Store.del("wisp"); Store.del("wispRaw"); Store.del("mode");
+    Store.del("quick"); Store.del("theme");
+    _transport = null; wispCooldownUntil = 0;
+    $("#setWisp").value = ""; $("#setMode").value = "auto"; $("#setTheme").value = "dark";
+    $("#setQuick").value = DEFAULT_QUICK.map((q) => q[0] + " | " + q[1]).join("\n");
+    applyTheme(); renderQuick();
+    const st = idleStatus(); setStatus(st.msg, st.cls);
+    toast("Valores restaurados", "ok");
+  });
   $("#viewerDl").addEventListener("click", () => { if (viewerData) zipAndSave(viewerData.bytes, viewerData.name, viewerData.url); });
   $("#btnSaveCurrent").addEventListener("click", () => {
     if (currentUrl) downloadUrl(currentUrl);
@@ -2032,10 +2097,13 @@ function boot(){
   }, 400);
 
   const h = location.hash || "";
+  let startUrl = DEFAULT_HOME;
   if (h.indexOf("#k=") === 0){
     const u = unb64url(h.slice(3));
-    if (u && /^https?:/i.test(u)) setTimeout(() => navigate(u), 650);
+    if (u && /^https?:/i.test(u)) startUrl = u;
   }
+  /* arranque automático: abre visuales.uclv.edu.cu (o la URL del hash) sin tocar nada */
+  setTimeout(() => navigate(startUrl), 700);
 
   setTimeout(() => $("#boot").classList.add("gone"), 550);
 }
