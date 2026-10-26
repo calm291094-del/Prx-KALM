@@ -457,7 +457,7 @@ async function readBinary(p,url,ctl,onProgress){
 }
 function tryProxy(p,url,opts){
   const ac=new AbortController();
-  const to=setTimeout(()=>ac.abort(),opts.timeout||15000);
+  const to=setTimeout(()=>ac.abort(),opts.timeout||20000);
   const init={signal:ac.signal,redirect:'follow'};
   if(p.headers) init.headers=p.headers();
   const job=opts.binary
@@ -579,6 +579,7 @@ function autoPickMode(url){
 'use strict';
 /* ════════════════ 8. Navegación central ════════════════ */
 function hostOf(u){ try{ return new URL(u).hostname; }catch(e){ return ''; } }
+function isCuHost(u){ const h=hostOf(u); return h==='cu'||h.endsWith('.cu'); }
 
 function setModeUI(mode){
   state.mode=mode;
@@ -641,7 +642,7 @@ function renderDirect(url,seq){
   viewport.querySelectorAll('iframe').forEach(x=>x.remove());
   const f=document.createElement('iframe');
   f.name='kalmFrame';
-  f.allow='fullscreen; clipboard-read; clipboard-write';
+  f.allow='fullscreen';
   f.referrerPolicy='strict-origin-when-cross-origin';
   f.addEventListener('load',()=>{
     if(seq!==state.seq) return;
@@ -691,6 +692,15 @@ async function renderProxy(url,seq){
   }catch(e){
     if(seq!==state.seq) return;
     finishLoad(seq);
+    if(isCuHost(url)){
+      // Los .cu solo responden desde la red cubana: los proxies extranjeros no pueden
+      // llegar al origen. Volver a Directo automáticamente para no repetir el fracaso.
+      try{ prefs[hostOf(url)]='direct'; savePrefs(); }catch(_e){}
+      setModeUI('direct');
+      showStatus('Los dominios .cu no son accesibles desde servidores extranjeros (geo-bloqueo): ningún proxy puede leerlos. Volviendo al modo DIRECTO, que carga el sitio nativo desde tu red.','warn',true);
+      navigate(url,{raw:true,push:false,mode:'direct'});
+      return;
+    }
     showStatus('No se pudo cargar por proxy: '+errMsg(e),'err',true);
     swapFrame(errorPage(url,e));
   }
@@ -718,10 +728,12 @@ function errorPage(url,err){
   +'<h1>No se pudo cargar por proxy</h1>'
   +'<p><code>'+safe(url)+'</code></p>'
   +'<p>Motivo: <b>'+safe(errMsg(err))+'</b>.<br>'
-  +'Los proxies CORS públicos suelen estar saturados (error 429) o han cerrado el acceso libre. '
+  +(isCuHost(url)
+    ?'Este dominio es <b>.cu</b>: solo responde desde la red cubana, así que los proxies extranjeros nunca podrán leerlo. Usa el modo <b>Directo</b>, que carga el sitio nativo desde tu red.</p>'
+    :'Los proxies CORS públicos suelen estar saturados (error 429) o han cerrado el acceso libre. '
   +'Prueba el modo <b>Directo</b> (botón de la barra o el botón verde): carga el sitio nativo sin proxy, '
   +'y es la vía recomendada para visuales.uclv.edu.cu desde Cuba. Para que el modo Proxy funcione siempre, '
-  +'despliega tu propio proxy gratis: Ajustes → «Proxy propio en Cloudflare Workers».</p>'
+  +'despliega tu propio proxy gratis: Ajustes → «Proxy propio en Cloudflare Workers».</p>')
   +'<div class="b">'
   +'<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'retry\'},\'*\')">Reintentar</button>'
   +'<button onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'direct\'},\'*\')">Cargar en modo Directo</button>'
@@ -736,7 +748,7 @@ function directPost(url,fields){
   viewport.querySelectorAll('iframe').forEach(x=>x.remove());
   const fr=document.createElement('iframe');
   fr.name='kalmFrame';
-  fr.allow='fullscreen; clipboard-read; clipboard-write';
+  fr.allow='fullscreen';
   viewport.appendChild(fr);
   const f=document.createElement('form');
   f.method='post'; f.action=url; f.target='kalmFrame';
@@ -1006,6 +1018,12 @@ function saveBlob(name,blob){
 }
 async function zipAndSave(url){
   if(!url){ showStatus('No hay ninguna página que guardar.','warn'); return; }
+  if(isCuHost(url)){
+    // Leer un .cu requiere llegar al origen cubano: ni el navegador (CORS) ni los proxies
+    // extranjeros (geo-bloqueo) pueden. En directo, las descargas nativas del sitio funcionan.
+    showStatus('Los dominios .cu no permiten la lectura externa (CORS + geo-bloqueo): el empaquetado ZIP solo está disponible para sitios internacionales. En modo Directo, los enlaces de descarga del sitio funcionan de forma nativa sin ZIP.','warn',true);
+    return;
+  }
   const seq=state.seq;
   showStatus('Descargando para comprimir (será '+pad5((parseInt(lsGet(K.counter,'0'),10)||0)+1)+'.zip)…','info');
   progressStart();
@@ -1090,6 +1108,9 @@ $('modeBadge').addEventListener('click',function(){
   if(!state.current) return;
   const next=state.mode==='direct'?'proxy':'direct';
   const h=hostOf(state.current);
+  if(next==='proxy'&&isCuHost(state.current)){
+    if(!confirm('«'+h+'» es un dominio .cu: solo responde dentro de la red cubana, así que los proxies extranjeros NO podrán leerlo y fallará.\n\nEl modo DIRECTO es el correcto para los .cu (carga nativa desde tu red).\n\n¿Quieres probar el proxy de todos modos?')) return;
+  }
   if(h){ prefs[h]=next; savePrefs(); }
   navigate(state.current,{raw:true,push:false,mode:next});
   showStatus(next==='direct'
