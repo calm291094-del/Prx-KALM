@@ -1,922 +1,773 @@
 <!DOCTYPE html>
-<!--
-  ═══════════════════════════════════════════════════════════════════
-  KALM · Navegador interno dentro del navegador (Prx-KALM v2)
-  ───────────────────────────────────────────────────────────────────
-  · Arquitectura GUST: SIN Service Worker. libcurl.js (WASM) + WISP.
-  · Cero configuración: abre y navega. Por defecto carga
-    https://visuales.uclv.edu.cu/
-  · Rutas de red con failover automático:
-      1) WISP vía libcurl.js (cifrado extremo a extremo, sin CORS)
-      2) Carrera en paralelo entre proxies CORS públicos
-      3) Recursos directos cuando tu red llega al sitio
-  · Descargas → ZIP en el cliente (STORE, sin librerías), numeradas
-    desde 00001.zip, 00002.zip… (contador persistente en localStorage)
-  · Despliegue: sube ESTE único archivo a un repo y activa
-    GitHub Pages (Settings → Pages → branch main / root). Listo.
-  ═══════════════════════════════════════════════════════════════════
--->
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="Kalm — navegador interno dentro del navegador. Sin Service Worker: libcurl.js + WISP + proxies CORS con failover.">
-<meta name="theme-color" content="#0b0f14">
-<title>Kalm · Navegador interno</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232dd4a7'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='900' text-anchor='middle' fill='%2304241c'%3EK%3C/text%3E%3C/svg%3E">
+<meta name="referrer" content="no-referrer">
+<title>Prx-KALM</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0b0f14; --bg2:#10161d; --bg3:#151d27; --line:rgba(255,255,255,.09);
-  --text:#e7eef5; --mut:#8b98a7; --acc:#2dd4a7; --acc2:#4aa3ff;
-  --warn:#f5a524; --bad:#f0554f;
+  --bg:#0e1114; --panel:#151a20; --panel2:#1b232b; --field:#0b0e11;
+  --line:rgba(255,255,255,.09); --tx:#e8edf2; --tx2:#8fa0ad;
+  --ac:#39c8b0; --acdim:rgba(57,200,176,.14);
+  --err:#ef6b6b; --warn:#e8b34b; --ok:#5ecb81; --busy:#8fa0ad;
 }
+*{box-sizing:border-box}
 html,body{height:100%}
-body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden}
-button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
-input,select,textarea{font:inherit}
-svg{display:block}
-
-/* ── Barra superior ─────────────────────────────── */
-#topbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:linear-gradient(180deg,#111923,#0e141c);border-bottom:1px solid var(--line);flex-wrap:wrap}
-.logo{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.14em;font-size:14.5px;user-select:none;padding-right:4px}
-.logo .kmark{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--acc),#0ea5e9);display:grid;place-items:center;color:#04241c;font-weight:900;font-size:14px;letter-spacing:0}
-.chip{display:flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;background:var(--bg3);border:1px solid var(--line);font-size:12px;color:var(--mut);max-width:230px;white-space:nowrap;overflow:hidden}
-.chip span.txt{overflow:hidden;text-overflow:ellipsis}
-.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 6px var(--warn);flex:none}
-.chip.ok{color:var(--acc);border-color:rgba(45,212,167,.35)}
-.chip.ok .dot{background:var(--acc);box-shadow:0 0 6px var(--acc)}
-.chip.bad{color:var(--bad);border-color:rgba(240,85,79,.35)}
-.chip.bad .dot{background:var(--bad);box-shadow:0 0 6px var(--bad)}
-.chip.busy .dot{animation:pulse 1s infinite}
-@keyframes pulse{50%{opacity:.25}}
-.navbtns{display:flex;gap:2px}
-.ibtn{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:var(--mut);position:relative}
-.ibtn:hover{background:var(--bg3);color:var(--text)}
-.ibtn:disabled{opacity:.32;pointer-events:none}
-.ibtn svg{width:17px;height:17px}
-#addrForm{flex:1 1 300px;display:flex;min-width:230px}
-.addrwrap{position:relative;flex:1;display:flex;align-items:center;background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:0 34px 0 12px}
-.addrwrap:focus-within{border-color:rgba(45,212,167,.55);box-shadow:0 0 0 3px rgba(45,212,167,.12)}
-#addr{flex:1;background:none;border:0;outline:0;color:var(--text);font-size:13.5px;height:34px;min-width:0}
-#addrSpin{position:absolute;right:10px;width:14px;height:14px;border:2px solid rgba(255,255,255,.15);border-top-color:var(--acc);border-radius:50%;animation:spin .7s linear infinite;display:none}
-@keyframes spin{to{transform:rotate(360deg)}}
-.badge{position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--acc);color:#04241c;font-size:10.5px;font-weight:800;display:none;place-items:center}
-
-/* ── Visor + overlay ────────────────────────────── */
-#main{position:relative;flex:1;min-height:0;background:#0d1218}
-#view{position:absolute;inset:0;width:100%;height:100%;border:0;background:#fff}
-#overlay{position:absolute;inset:0;display:none;place-items:center;background:rgba(8,11,15,.74);backdrop-filter:blur(3px);z-index:30}
-#overlay.on{display:grid}
-.ovcard{width:min(540px,92%);background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.ovhead{display:flex;align-items:center;gap:12px;margin-bottom:6px}
-.spin{width:20px;height:20px;border:3px solid rgba(255,255,255,.12);border-top-color:var(--acc);border-radius:50%;animation:spin .8s linear infinite;flex:none}
-#ovPhase{font-weight:600}
-#ovUrl{color:var(--mut);font-size:12.5px;word-break:break-all;margin-bottom:10px}
-#ovLog{list-style:none;max-height:160px;overflow:auto;font-family:ui-monospace,Consolas,monospace;font-size:11.5px;color:var(--mut);background:#0a0e13;border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:none}
-#ovLog li{padding:1.5px 0;white-space:pre-wrap;word-break:break-all}
-#ovCancel{margin-top:12px}
-.btn{padding:8px 14px;border-radius:9px;background:var(--bg3);border:1px solid var(--line);font-size:13px}
-.btn:hover{border-color:rgba(255,255,255,.28)}
-.btn.acc{background:linear-gradient(135deg,var(--acc),#17b58c);color:#04241c;font-weight:700;border:0}
-
-/* ── Barra de estado ────────────────────────────── */
-#statusbar{display:flex;gap:16px;align-items:center;padding:3px 12px;font-size:11px;color:var(--mut);background:var(--bg2);border-top:1px solid var(--line);white-space:nowrap;overflow:hidden}
-#sbHint{margin-left:auto;overflow:hidden;text-overflow:ellipsis}
-
-/* ── Panel de descargas ─────────────────────────── */
-.panel{position:fixed;top:0;bottom:0;right:-430px;width:min(400px,100%);background:var(--bg2);border-left:1px solid var(--line);z-index:40;transition:right .25s ease;display:flex;flex-direction:column}
-.panel.on{right:0;box-shadow:-20px 0 50px rgba(0,0,0,.4)}
-.phead{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--line);font-weight:700;font-size:13.5px}
-.phead .x{margin-left:auto}
-#dlList{flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:8px}
-.dlrow{background:var(--bg3);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12.5px}
-.dlrow .t{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
-.dlrow .n{font-weight:700;color:var(--acc)}
-.dlrow.err .n{color:var(--bad)}
-.dlrow .s{color:var(--mut);text-align:right;flex:none}
-.dlrow .u{color:var(--mut);word-break:break-all;font-size:11.5px;margin-top:3px}
-.dlrow .bar{height:4px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:8px;overflow:hidden}
-.dlrow .bar i{display:block;height:100%;width:0%;background:var(--acc);transition:width .2s}
-.dlempty{color:var(--mut);font-size:12.5px;text-align:center;padding:26px 10px;line-height:1.7}
-
-/* ── Modal de ajustes ───────────────────────────── */
-#modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(5,8,12,.62);z-index:50}
-#modal.on{display:grid}
-.mcard{width:min(640px,94%);max-height:88vh;overflow:auto;background:var(--bg2);border:1px solid var(--line);border-radius:16px;padding:20px 22px;box-shadow:0 24px 70px rgba(0,0,0,.55)}
-.mcard h2{font-size:16px;margin-bottom:4px}
-.mcard .sub{color:var(--mut);font-size:12.5px;margin-bottom:14px}
-.fgroup{margin-bottom:14px}
-.fgroup label{display:block;font-size:11.5px;color:var(--mut);margin-bottom:6px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
-.fgroup textarea,.fgroup select{width:100%;background:var(--bg3);color:var(--text);border:1px solid var(--line);border-radius:9px;padding:9px 10px;font:12.5px/1.5 ui-monospace,Consolas,monospace;resize:vertical}
-.mrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-table.diag{width:100%;border-collapse:collapse;font-size:12px}
-table.diag th{text-align:left;color:var(--mut);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
-table.diag td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.05);vertical-align:top}
-.st{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--mut);margin-right:6px;vertical-align:middle}
-.st.ok{background:var(--acc);box-shadow:0 0 5px var(--acc)}
-.st.bad{background:var(--bad)}
-.st.busy{background:var(--warn);animation:pulse 1s infinite}
-.note{font-size:11.5px;color:var(--mut);background:#0a0e13;border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-top:12px;line-height:1.65}
-.note b{color:#c8d5e1}
-
-/* ── Toast ──────────────────────────────────────── */
-#toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%) translateY(16px);background:#12241c;color:#d7ffee;border:1px solid rgba(45,212,167,.4);padding:9px 16px;border-radius:10px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:60;max-width:86%}
-#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-#toast.bad{background:#2a1414;color:#ffd9d7;border-color:rgba(240,85,79,.4)}
-
-@media (max-width:720px){
-  .logo span.wm{display:none}
-  .chip{max-width:150px}
+body{
+  margin:0; background:var(--bg); color:var(--tx);
+  font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,"Noto Sans",sans-serif;
+  display:flex; flex-direction:column; overflow:hidden;
 }
+/* ---------- barra superior ---------- */
+#topbar{
+  display:flex; align-items:center; gap:7px; padding:8px 10px;
+  background:var(--panel); border-bottom:1px solid var(--line);
+  position:relative; z-index:20; flex:0 0 auto;
+}
+.ibtn{
+  width:34px; height:34px; flex:0 0 auto; display:grid; place-items:center;
+  background:transparent; color:var(--tx2); border:1px solid transparent;
+  border-radius:9px; cursor:pointer; transition:background .15s,color .15s;
+}
+.ibtn:hover{background:var(--panel2); color:var(--tx)}
+.ibtn:active{transform:translateY(1px)}
+.ibtn[disabled]{opacity:.35; cursor:default}
+.ibtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#addrwrap{flex:1 1 auto; position:relative; min-width:120px}
+#addrwrap .lock{
+  position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  width:14px; height:14px; stroke:var(--tx2); fill:none; stroke-width:2; pointer-events:none;
+}
+#addr{
+  width:100%; height:34px; padding:0 40px 0 33px;
+  background:var(--field); color:var(--tx);
+  border:1px solid var(--line); border-radius:999px; outline:none;
+  font-size:13px; transition:border-color .15s, box-shadow .15s;
+}
+#addr:focus{border-color:var(--ac); box-shadow:0 0 0 3px var(--acdim)}
+#addr::placeholder{color:#5c6b76}
+#go{
+  position:absolute; right:4px; top:4px; height:26px; padding:0 10px;
+  background:var(--acdim); color:var(--ac); border:0; border-radius:999px;
+  font-size:12px; font-weight:600; cursor:pointer;
+}
+#go:hover{background:rgba(57,200,176,.24)}
+#chip{
+  flex:0 0 auto; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:11.5px; font-weight:600; letter-spacing:.2px;
+  padding:5px 11px; border-radius:999px; border:1px solid var(--line);
+  color:var(--tx2); background:var(--field); cursor:default; transition:color .2s,border-color .2s;
+}
+#chip.direct{color:var(--ac); border-color:rgba(57,200,176,.35); background:var(--acdim)}
+#chip.ok{color:var(--ok); border-color:rgba(94,203,129,.35); background:rgba(94,203,129,.12)}
+#chip.err{color:var(--err); border-color:rgba(239,107,107,.4); background:rgba(239,107,107,.12)}
+#chip.warn{color:var(--warn); border-color:rgba(232,179,75,.4); background:rgba(232,179,75,.12)}
+#chip.busy{color:var(--busy); animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+#dlBadge{
+  position:absolute; top:2px; right:2px; min-width:15px; height:15px; padding:0 4px;
+  background:var(--ac); color:#06251f; border-radius:999px; font-size:10px; font-weight:800;
+  display:none; place-items:center; line-height:15px; text-align:center;
+}
+#progress{
+  position:absolute; left:0; right:0; bottom:-1px; height:2px; overflow:hidden;
+  display:none; pointer-events:none;
+}
+#progress i{
+  display:block; height:100%; width:38%; background:var(--ac); border-radius:2px;
+  animation:slide 1.05s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+@keyframes slide{0%{transform:translateX(-110%)}100%{transform:translateX(380%)}}
+/* ---------- área de contenido ---------- */
+#stage{flex:1 1 auto; position:relative; background:#fff}
+#stage.alt{background:var(--bg)}
+#frameDirect,#frameProxy{
+  position:absolute; inset:0; width:100%; height:100%; border:0; display:block;
+}
+#frameProxy{background:var(--bg)}
+.hide{display:none !important}
+/* ---------- toasts ---------- */
+#toasts{position:fixed; right:14px; bottom:14px; display:flex; flex-direction:column; gap:8px; z-index:90; max-width:340px}
+.toast{
+  background:var(--panel2); border:1px solid var(--line); border-left:3px solid var(--busy);
+  color:var(--tx); border-radius:10px; padding:10px 13px; font-size:12.5px;
+  box-shadow:0 8px 24px rgba(0,0,0,.45); animation:tin .22s ease;
+}
+.toast.ok{border-left-color:var(--ok)} .toast.err{border-left-color:var(--err)}
+.toast.warn{border-left-color:var(--warn)} .toast.info{border-left-color:var(--ac)}
+@keyframes tin{from{opacity:0; transform:translateY(8px)}}
+/* ---------- modales ---------- */
+.modal{
+  position:fixed; inset:0; z-index:80; display:none; place-items:center;
+  background:rgba(4,7,9,.6); backdrop-filter:blur(3px);
+}
+.modal.open{display:grid}
+.sheet{
+  width:min(520px, calc(100vw - 32px)); max-height:min(70vh,560px); overflow:auto;
+  background:var(--panel); border:1px solid var(--line); border-radius:16px;
+  box-shadow:0 24px 60px rgba(0,0,0,.55); padding:18px 20px;
+}
+.sheet h2{margin:0 0 4px; font-size:16px}
+.sheet .sub{margin:0 0 14px; color:var(--tx2); font-size:12px}
+.frow{margin:12px 0}
+.frow label{display:block; font-size:12px; color:var(--tx2); margin-bottom:5px; font-weight:600}
+.frow input[type=text],.frow select{
+  width:100%; height:36px; background:var(--field); color:var(--tx);
+  border:1px solid var(--line); border-radius:9px; padding:0 11px; outline:none; font-size:13px;
+}
+.frow input:focus,.frow select:focus{border-color:var(--ac)}
+.frow .note{font-size:11.5px; color:var(--tx2); margin-top:6px; line-height:1.5}
+.btnrow{display:flex; gap:8px; margin-top:16px; flex-wrap:wrap}
+.btn{
+  height:34px; padding:0 15px; border-radius:9px; border:1px solid var(--line);
+  background:var(--panel2); color:var(--tx); font-size:12.5px; font-weight:600; cursor:pointer;
+  display:inline-flex; align-items:center; gap:7px;
+}
+.btn:hover{border-color:var(--ac); color:var(--ac)}
+.btn.primary{background:var(--ac); border-color:var(--ac); color:#06251f}
+.btn.primary:hover{filter:brightness(1.08); color:#06251f}
+/* descargas */
+table{width:100%; border-collapse:collapse; font-size:12.5px}
+th,td{text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top}
+th{color:var(--tx2); font-size:11px; text-transform:uppercase; letter-spacing:.4px}
+td .u{color:var(--tx2); font-size:11px; word-break:break-all}
+.empty{color:var(--tx2); text-align:center; padding:26px 10px; font-size:12.5px}
+/* ---------- capa de inicio (DIV, sin iframe) ---------- */
+#homeLayer,#errLayer{position:absolute; inset:0; overflow:auto; z-index:5}
+.homebox{min-height:100%; display:flex; align-items:center; justify-content:center;
+  background:radial-gradient(1200px 700px at 50% -10%, #17313a 0%, var(--bg) 55%)}
+.hcard{width:min(640px,92vw); text-align:center; padding:30px 0}
+.hlogo{width:72px;height:72px;margin:0 auto 18px;border-radius:22px;
+  background:linear-gradient(135deg,#39c8b0,#1f8f7c);display:flex;align-items:center;justify-content:center;
+  font-size:30px;font-weight:800;color:#06251f;box-shadow:0 14px 40px rgba(57,200,176,.25)}
+.hcard h1{margin:0 0 6px;font-size:30px;letter-spacing:6px}
+.hsub{margin:0 0 24px;color:var(--tx2);font-size:13.5px}
+.hsearch{display:flex;gap:8px;max-width:520px;margin:0 auto 24px;padding:0 12px}
+.hsearch input{flex:1;height:46px;border-radius:999px;border:1px solid var(--line);background:var(--field);
+  color:var(--tx);padding:0 20px;font-size:14px;outline:none}
+.hsearch input:focus{border-color:var(--ac)}
+.hsearch button{height:46px;padding:0 22px;border-radius:999px;border:0;background:var(--ac);
+  color:#06251f;font-weight:700;font-size:14px;cursor:pointer}
+.hlinks{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.lk{padding:9px 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);
+  color:#cfe3de;font-size:13px;cursor:pointer;transition:border-color .15s}
+.lk:hover{border-color:var(--ac);color:var(--ac)}
+.hfoot{margin-top:28px;color:#5c6b76;font-size:11.5px;line-height:1.7;padding:0 16px}
+/* ---------- capa de error (DIV, sin iframe) ---------- */
+.errcard{max-width:560px;margin:56px auto;background:var(--panel);border:1px solid var(--line);
+  border-radius:16px;padding:26px 30px}
+.errcard h2{margin:0 0 8px;font-size:19px;color:var(--err)}
+.errcard .eu{color:var(--tx2);font-size:12.5px;word-break:break-all;margin-bottom:12px}
+.errcard p{font-size:13.5px;color:#c9d4dc;margin:8px 0}
+.errcard ul{margin:8px 0 0;padding-left:18px;font-size:12px;color:var(--tx2)}
+.errcard .btnrow{margin-top:18px}
+@media (max-width:640px){ #chip{display:none} }
 </style>
 </head>
 <body>
-
 <header id="topbar">
-  <div class="logo"><span class="kmark">K</span><span class="wm">KALM</span></div>
-  <button id="chip" class="chip busy" title="Estado de la ruta de red — clic para ajustes"><span class="dot"></span><span class="txt" id="chipTxt">iniciando…</span></button>
-  <div class="navbtns">
-    <button id="bBack" class="ibtn" title="Atrás" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <button id="bFwd" class="ibtn" title="Adelante" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg></button>
-    <button id="bRel" class="ibtn" title="Recargar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/></svg></button>
-    <button id="bHome" class="ibtn" title="Inicio (visuales.uclv.edu.cu)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></button>
+  <button class="ibtn" id="bBack" title="Atrás"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <button class="ibtn" id="bFwd" title="Adelante"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></button>
+  <button class="ibtn" id="bReload" title="Recargar"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg></button>
+  <button class="ibtn" id="bHome" title="Inicio"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg></button>
+  <div id="addrwrap">
+    <svg class="lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+    <input id="addr" type="text" spellcheck="false" autocomplete="off"
+           placeholder="Busca o escribe una dirección (ej. visuales.uclv.edu.cu)">
+    <button id="go">Ir</button>
   </div>
-  <form id="addrForm" autocomplete="off">
-    <div class="addrwrap">
-      <input id="addr" spellcheck="false" placeholder="Escribe una URL o búsqueda — ej: visuales.uclv.edu.cu">
-      <span id="addrSpin"></span>
-    </div>
-  </form>
-  <button id="bDl" class="ibtn" title="Descargas (ZIP numerado)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg><span id="dlBadge" class="badge">0</span></button>
-  <button id="bSet" class="ibtn" title="Ajustes y diagnóstico de red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></button>
+  <div id="chip" title="Ruta de conexión">Listo</div>
+  <button class="ibtn" id="bDl" title="Descargas" style="position:relative">
+    <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+    <span id="dlBadge">0</span>
+  </button>
+  <button class="ibtn" id="bCfg" title="Ajustes"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h0a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h0a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v0a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg></button>
+  <div id="progress"><i></i></div>
 </header>
 
-<main id="main">
-  <iframe id="view" title="Navegador interno" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"></iframe>
-  <div id="overlay">
-    <div class="ovcard">
-      <div class="ovhead"><span class="spin"></span><span id="ovPhase">Conectando…</span></div>
-      <div id="ovUrl"></div>
-      <ul id="ovLog"></ul>
-      <button id="ovCancel" class="btn">Cancelar</button>
-    </div>
+<div id="stage">
+  <iframe id="frameDirect" referrerpolicy="no-referrer" allow="fullscreen" title="Vista directa"></iframe>
+  <iframe id="frameProxy" class="hide" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-popups-to-escape-sandbox" title="Vista proxy"></iframe>
+  <!-- capa de inicio: contenido propio, sin iframe (compatible con todo) -->
+  <div id="homeLayer" class="hide">
+    <div class="homebox"><div class="hcard">
+      <div class="hlogo">K</div>
+      <h1>KALM</h1>
+      <p class="hsub">Tu navegador dentro del navegador &mdash; directo, sin configurar nada</p>
+      <div class="hsearch">
+        <input id="hq" placeholder="Buscar en la web o escribir una dirección…" spellcheck="false" autocomplete="off">
+        <button id="hgo">Buscar</button>
+      </div>
+      <div class="hlinks">
+        <button class="lk" data-u="https://visuales.uclv.edu.cu/">Visuales UCLV</button>
+        <button class="lk" data-u="https://www.uclv.edu.cu/">UCLV</button>
+        <button class="lk" data-u="https://example.com/">example.com</button>
+      </div>
+      <p class="hfoot">Los sitios cubanos (.cu) se abren en modo directo: la única vía que funciona desde la red cubana.<br>
+      Para sitios que bloquean el enmarcado se usan proxies públicos gratuitos (pueden estar saturados).</p>
+    </div></div>
   </div>
-</main>
+  <!-- capa de error: contenido propio, sin iframe -->
+  <div id="errLayer" class="hide"></div>
+</div>
 
-<div id="statusbar"><span id="sbInfo">Kalm · navegador interno · sin Service Worker</span><span id="sbHint"></span></div>
+<div id="toasts"></div>
 
-<aside id="dlPanel" class="panel">
-  <div class="phead">Descargas · ZIP numerado
-    <button class="ibtn x" id="dlClose" title="Cerrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-  </div>
-  <div id="dlList"><div class="dlempty">Aún no hay descargas.<br>Los archivos que abras aquí se comprimen en ZIP<br>y se guardan como 00001.zip, 00002.zip…</div></div>
-</aside>
-
-<div id="modal">
-  <div class="mcard">
-    <h2>Ajustes de Kalm</h2>
-    <div class="sub">Cero configuración necesaria: los valores por defecto ya vienen listos. Cambia algo solo si sabes lo que haces.</div>
-    <div class="fgroup">
-      <label>Servidores WISP (uno por línea · failover en orden)</label>
-      <textarea id="setWisp" rows="3" spellcheck="false"></textarea>
-    </div>
-    <div class="fgroup">
-      <label>Modo de transporte</label>
-      <select id="setMode">
-        <option value="auto">Auto (recomendado): WISP → proxies CORS → directo</option>
-        <option value="wisp">Solo WISP (libcurl.js, cifrado extremo a extremo)</option>
-        <option value="proxy">Solo proxies CORS públicos</option>
+<!-- Ajustes -->
+<div class="modal" id="mCfg">
+  <div class="sheet">
+    <h2>Ajustes</h2>
+    <p class="sub">Se guardan automáticamente en este navegador.</p>
+    <div class="frow">
+      <label for="cfgMode">Modo de conexión</label>
+      <select id="cfgMode">
+        <option value="auto">Automático (recomendado)</option>
+        <option value="direct">Directo — más rápido y fiable</option>
+        <option value="proxy">Proxy — muestra la URL al navegar</option>
       </select>
+      <div class="note"><b>Directo</b> carga los sitios dentro de la página sin intermediarios: la vía que funciona para sitios cubanos (.cu). <b>Proxy</b> descarga las páginas a través de servidores públicos gratuitos (inestables) y permite seguir la URL al hacer clic.</div>
     </div>
-    <div class="fgroup">
-      <label>Diagnóstico de red en vivo</label>
-      <table class="diag">
-        <thead><tr><th>Ruta</th><th>Estado</th><th>Detalle</th></tr></thead>
-        <tbody id="diagBody"><tr><td colspan="3" style="color:var(--mut)">Pulsa «Probar rutas» para chequear todas las vías de salida.</td></tr></tbody>
-      </table>
-      <div class="mrow">
-        <button id="btnDiag" class="btn">Probar rutas</button>
-        <button id="btnSave" class="btn acc">Guardar y reconectar</button>
-        <button id="btnSeq" class="btn">Reiniciar numeración ZIP</button>
-      </div>
-      <div class="note">
-        <b>Cómo funciona:</b> Kalm no usa Service Worker. El tráfico sale por <b>libcurl.js</b> (libcurl compilado a WebAssembly que hace TLS dentro de tu navegador) sobre un túnel WebSocket <b>WISP</b> — así ni el túnel ni los filtros leen tus peticiones. Si WISP no responde, compiten en paralelo varios <b>proxies CORS públicos</b> y gana el más rápido.<br><br>
-        <b>Servidor WISP público por defecto:</b> wisp.mercurywork.shop (demo de Mercury Workshop; puede caerse de vez en cuando). Puedes montar el tuyo en un VPS o en tu PC:
-        <span style="font-family:ui-monospace,monospace;color:#c8d5e1">npm i @mercuryworkshop/wisp-js &amp;&amp; npx wisp-js-server -H 0.0.0.0</span> y publícalo detrás de un dominio con TLS (wss://).<br><br>
-        <b>Dentro de la red UCLV:</b> los recursos de visuales.uclv.edu.cu se detectan como alcanzables en directo y se cargan sin proxy (más rápido).<br>
-        <b>Fuera de Cuba:</b> si el diagnóstico muestra que los proxies llegan a internet pero el sitio no responde, es que visuales.uclv.edu.cu está caído o solo accesible desde la isla — eso no lo arregla ningún proxy.
-      </div>
+    <div class="frow">
+      <label for="cfgHome">Página de inicio</label>
+      <input type="text" id="cfgHome" placeholder="https://visuales.uclv.edu.cu/">
+    </div>
+    <div class="frow">
+      <label>Nota</label>
+      <div class="note">El túnel WISP se retiró en la v3: los servidores públicos están caídos y los sitios .cu solo responden desde la red cubana, donde el modo directo funciona sin intermediarios. Las descargas ZIP numeradas (00001, 00002…) operan en modo proxy; en modo directo el navegador guarda los archivos de forma nativa.</div>
+    </div>
+    <div class="btnrow">
+      <button class="btn primary" id="cfgSave">Guardar</button>
+      <button class="btn" id="cfgReset">Restaurar</button>
+      <button class="btn" id="cfgClose">Cerrar</button>
     </div>
   </div>
 </div>
 
-<div id="toast"></div>
+<!-- Descargas -->
+<div class="modal" id="mDl">
+  <div class="sheet">
+    <h2>Descargas</h2>
+    <p class="sub">Archivos obtenidos vía proxy y empaquetados en ZIP con numeración secuencial.</p>
+    <div id="dlList"></div>
+    <div class="btnrow">
+      <button class="btn" id="dlClear">Limpiar historial</button>
+      <button class="btn" id="dlClose">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== plantilla: shim de almacenamiento para el iframe proxy (origen opaco) ====== -->
+<script type="text/plain" id="tpl-shim">
+(function(){
+  try{ window.localStorage.getItem('x'); }catch(e){
+    var mk=function(){var s={};return{getItem:function(k){return k in s?s[k]:null},setItem:function(k,v){s[k]=String(v)},removeItem:function(k){delete s[k]},clear:function(){s={}},key:function(i){return Object.keys(s)[i]||null}}};
+    try{ Object.defineProperty(window,'localStorage',{value:mk(),configurable:false}); }catch(_){}
+    try{ Object.defineProperty(window,'sessionStorage',{value:mk(),configurable:false}); }catch(_){}
+    var cd={};
+    try{ Object.defineProperty(document,'cookie',{get:function(){return Object.keys(cd).map(function(k){return k+'='+cd[k]}).join('; ')},set:function(v){try{var p=v.split(';')[0].split('=');cd[p[0]]=p.slice(1).join('=')}catch(_){}},configurable:false}); }catch(_){}
+  }
+})();
+</script>
+
+<!-- ====== plantilla: interceptor de clics/formularios para el iframe proxy ====== -->
+<script type="text/plain" id="tpl-hook">
+(function(){
+  var FILE=/\.(zip|rar|7z|tar|gz|tgz|bz2|exe|msi|apk|dmg|pdf|docx?|xlsx?|pptx?|odt|ods|mp3|mp4|avi|mkv|mov|flv|wav|ogg|iso|img|csv|epub)([?#]|$)/i;
+  function send(m){ try{ m.k='kalm'; parent.postMessage(m,'*'); }catch(e){} }
+  function abs(u){ try{ return new URL(u, document.baseURI).href; }catch(e){ return null; } }
+  document.addEventListener('click', function(ev){
+    var t=ev.target; if(!t||!t.closest) return;
+    var a=t.closest('a[href]'); if(!a) return;
+    var h=a.getAttribute('href')||'';
+    if(h.charAt(0)==='#'){ ev.preventDefault(); return; }
+    if(/^(javascript|data|blob|mailto|tel):/i.test(h)) return;
+    var u=abs(h); if(!u) return;
+    var dl=a.hasAttribute('download')||FILE.test(u);
+    ev.preventDefault(); ev.stopPropagation();
+    if(dl) send({t:'dl', url:u}); else send({t:'nav', url:u});
+  }, true);
+  document.addEventListener('auxclick', function(ev){
+    if(ev.button!==1) return;
+    var t=ev.target; if(!t||!t.closest) return;
+    var a=t.closest('a[href]'); if(!a) return;
+    var u=abs(a.getAttribute('href')||''); if(!u) return;
+    ev.preventDefault();
+    if(FILE.test(u)) send({t:'dl', url:u}); else send({t:'nav', url:u});
+  }, true);
+  document.addEventListener('submit', function(ev){
+    var f=ev.target; if(!f||f.tagName!=='FORM') return;
+    var m=(f.getAttribute('method')||'get').toLowerCase();
+    var u=abs(f.getAttribute('action')||document.baseURI); if(!u) return;
+    ev.preventDefault();
+    if(m==='get'){
+      try{
+        var U=new URL(u), fd=new FormData(f);
+        fd.forEach(function(v,k){ if(typeof v==='string') U.searchParams.append(k,v); });
+        send({t:'nav', url:U.href});
+      }catch(e){}
+    }else{
+      var pr=[];
+      try{ var fd2=new FormData(f); fd2.forEach(function(v,k){ if(typeof v==='string') pr.push(encodeURIComponent(k)+'='+encodeURIComponent(v)); }); }catch(e){}
+      send({t:'post', url:u, body:pr.join('&')});
+    }
+  }, true);
+  window.open=function(u){ if(u){ var x=abs(u); if(x) send({t:'nav', url:x}); } return null; };
+  send({t:'title', title:document.title||''});
+  send({t:'ready'});
+})();
+</script>
 <script>
 'use strict';
-/* ═══════════════════ KALM · núcleo ═══════════════════ */
-(function(){
+/* ============================================================
+   Prx-KALM v3 — navegador dentro del navegador (un solo archivo)
+   Arquitectura v3 "Directo primero":
+   - Los sitios .cu solo responden desde la red cubana y NO
+     bloquean el enmarcado -> iframe directo = vía fiable.
+   - Proxies CORS públicos = respaldo (todos inestables hoy).
+   - Barra de direcciones SIEMPRE con la URL real del sitio.
+   - Descargas vía proxy -> ZIP con numeración 00001, 00002…
+   ============================================================ */
 
-/* ── Utilidades ──────────────────────────────────── */
-const $ = id => document.getElementById(id);
-const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-function withTimeout(p, ms, msg){ return new Promise((res, rej) => { const t = setTimeout(() => rej(new Error(msg || 'tiempo agotado')), ms); Promise.resolve(p).then(v => { clearTimeout(t); res(v); }, e => { clearTimeout(t); rej(e); }); }); }
-const LS = {
-  get(k, d){ try { const v = localStorage.getItem('kalm.' + k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
-  set(k, v){ try { localStorage.setItem('kalm.' + k, JSON.stringify(v)); } catch(e){} }
-};
-function u8ToB64(u8){ let s = ''; const CH = 0x8000; for (let i = 0; i < u8.length; i += CH) s += String.fromCharCode.apply(null, u8.subarray(i, i + CH)); return btoa(s); }
-function fmtSize(n){ if (n == null || isNaN(n)) return '?'; if (n < 1024) return n + ' B'; if (n < 1048576) return (n/1024).toFixed(1) + ' KB'; if (n < 1073741824) return (n/1048576).toFixed(1) + ' MB'; return (n/1073741824).toFixed(2) + ' GB'; }
-function absUrl(u, base){ try { return new URL(u, base).href; } catch(e){ return null; } }
-function sfetch(u, o){ o = o || {}; const ctrl = new AbortController(); let to = null;
-  if (o.timeout) to = setTimeout(() => { try { ctrl.abort(); } catch(e){} }, o.timeout);
-  if (o.signal){ if (o.signal.aborted){ try { ctrl.abort(); } catch(e){} } else o.signal.addEventListener('abort', () => { try { ctrl.abort(); } catch(e){} }, { once:true }); }
-  return fetch(u, { method: o.method || 'GET', headers: o.headers || undefined, body: o.body, signal: ctrl.signal, redirect: 'follow', credentials: 'omit', referrerPolicy: 'no-referrer', mode: o.mode || 'cors', cache: 'no-store' }).finally(() => { if (to) clearTimeout(to); }); }
-async function readBody(r, onProgress){ if (!r.body || typeof onProgress !== 'function') return new Uint8Array(await r.arrayBuffer());
-  const rd = r.body.getReader(); const total = +(r.headers.get('content-length') || 0); const parts = []; let got = 0;
-  for (;;){ const st = await rd.read(); if (st.done) break; parts.push(st.value); got += st.value.length; try { onProgress(total ? got/total : 0, got, total); } catch(e){} }
-  const out = new Uint8Array(got); let off = 0; for (const p of parts){ out.set(p, off); off += p.length; } return out; }
-function decodeBytes(bytes, ct){ let cs = null; const m1 = /charset=([\w-]+)/i.exec(ct || ''); if (m1) cs = m1[1];
-  if (!cs){ try { const head = new TextDecoder('windows-1252', { fatal:false }).decode(bytes.slice(0, 2048)); const m2 = /<meta[^>]+charset\s*=\s*["']?\s*([\w-]+)/i.exec(head); if (m2) cs = m2[1]; } catch(e){} }
-  try { return new TextDecoder(cs || 'utf-8', { fatal:false }).decode(bytes); } catch(e){ return new TextDecoder('utf-8', { fatal:false }).decode(bytes); } }
-
-/* ── Configuración (cero configuración: todo por defecto) ── */
-const HOME = 'https://visuales.uclv.edu.cu/';
-const DEFAULT_WISP = ['wss://wisp.mercurywork.shop/'];
-const LIBCURL_CDNS = [
-  'https://cdn.jsdelivr.net/npm/libcurl.js@0.7.5/libcurl_full.min.js',
-  'https://cdn.jsdelivr.net/npm/libcurl.js@0.7.5/libcurl_full.js',
-  'https://unpkg.com/libcurl.js@0.7.5/libcurl_full.min.js',
-  'https://unpkg.com/libcurl.js@0.7.5/libcurl_full.js',
-  'https://cdn.jsdelivr.net/npm/libcurl.js@0.7.5/libcurl.js'
+var DEFAULT_HOME='https://visuales.uclv.edu.cu/';
+var ALIASES={'visuales.uclv.cu':'https://visuales.uclv.edu.cu/','visuales.uclv.edu.cu':'https://visuales.uclv.edu.cu/'};
+/* Sitios que envían X-Frame-Options/CSP y no pueden verse en modo directo */
+var XFO_HOSTS=['google.com','youtube.com','facebook.com','instagram.com','x.com','twitter.com',
+  'github.com','duckduckgo.com','bing.com','whatsapp.com','web.whatsapp.com','chatgpt.com',
+  'netflix.com','amazon.com','tiktok.com','reddit.com','linkedin.com','ayuda.uclv.edu.cu','correo.uclv.edu.cu'];
+/* Cadena de proxies públicos (se compiten en paralelo; el primero que responda gana) */
+var PROXIES=[
+  {id:'allorigins-get', kind:'json', path:'contents', mk:function(u){return 'https://api.allorigins.win/get?url='+encodeURIComponent(u);}},
+  {id:'allorigins-raw', kind:'raw',  mk:function(u){return 'https://api.allorigins.win/raw?url='+encodeURIComponent(u);}},
+  {id:'codetabs',       kind:'raw',  mk:function(u){return 'https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(u);}},
+  {id:'cors-workers',   kind:'raw',  mk:function(u){return 'https://test.cors.workers.dev/?'+u;}},
+  {id:'cors-lol',       kind:'raw',  mk:function(u){return 'https://api.cors.lol/?url='+encodeURIComponent(u);}},
+  {id:'cors-eu',        kind:'raw',  mk:function(u){return 'https://cors.eu.org/'+u;}}
 ];
-const SEARCH = q => 'https://lite.duckduckgo.com/lite/?q=' + encodeURIComponent(q);
-const DOWNLOAD_EXTS = /\.(zip|rar|7z|tar|gz|tgz|bz2|xz|apk|exe|msi|dmg|iso|img|bin|deb|rpm|mp4|mkv|avi|mov|flv|wmv|webm|m4v|3gp|mp3|m4a|flac|ogg|wav|aac|wma|pdf|doc|docx|xls|xlsx|ppt|pptx|odt|epub|cbz|cbr|torrent)([?#].*)?$/i;
-const cfg = { home: HOME, mode: LS.get('mode', 'auto'), wisp: LS.get('wisp', DEFAULT_WISP.slice()) };
+var SEARCH_URL='https://lite.duckduckgo.com/lite/?q=';
+var JSZIP_CDN='https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+var PROXY_TIMEOUT=14000, PROBE_TIMEOUT=5000;
 
-/* ── Proxies CORS públicos (carrera en paralelo) ─── */
-const PROVIDERS = [
-  { id:'corseu',    name:'cors.eu.org',       build:u => 'https://cors.eu.org/' + u },
-  { id:'allorig',   name:'allorigins',        build:u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
-  { id:'codetabs',  name:'codetabs',          build:u => 'https://api.codetabs.com/v1/proxy/?quest=' + encodeURIComponent(u) },
-  { id:'cfworker',  name:'cors.workers.dev',  build:u => 'https://test.cors.workers.dev/?' + u },
-  { id:'corslol',   name:'cors.lol',          build:u => 'https://api.cors.lol/?url=' + encodeURIComponent(u) },
-  { id:'corsproxy', name:'corsproxy.io',      build:u => 'https://corsproxy.io/?url=' + encodeURIComponent(u) },
-  { id:'thingproxy',name:'thingproxy',        build:u => 'https://thingproxy.freeboard.io/fetch/' + u },
-  { id:'jina',      name:'r.jina.ai',         build:u => 'https://r.jina.ai/' + u, headers:{ 'X-Return-Format':'html' } },
-  { id:'allorig2',  name:'allorigins·get',    build:u => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u), json:'contents' },
-  { id:'whatever',  name:'whateverorigin',    build:u => 'https://whateverorigin.org/get?url=' + encodeURIComponent(u), json:'contents' }
-];
+/* ---------- estado ---------- */
+var cfg={mode:'auto', home:DEFAULT_HOME};
+var cur={url:'', via:'', kind:''};
+var hist=[], hi=-1, dlSeq=1, dlHist=[], lastAttempts=[], directToastShown=false;
+var $=function(s){return document.querySelector(s);};
+var frameDirect=$('#frameDirect'), frameProxy=$('#frameProxy'), addr=$('#addr'), chip=$('#chip');
 
-/* ── Respuesta normalizada de cualquier transporte ─ */
-function mkRes(o){
-  const headers = o.headers || {};
-  const res = {
-    url: o.url, finalUrl: o.finalUrl || o.url, status: o.status || 0,
-    headers, bytes: o.bytes || new Uint8Array(0),
-    contentType: String(headers['content-type'] || '').toLowerCase(),
-    disposition: String(headers['content-disposition'] || ''),
-    get isHtml(){ if (/text\/html|application\/xhtml/i.test(this.contentType)) return true;
-      try { const h = new TextDecoder('utf-8', { fatal:false }).decode(this.bytes.slice(0, 512)).trim().toLowerCase();
-        return /^<!doctype html|^<html[^>]*>|^<head/.test(h); } catch(e){ return false; } },
-    get isTexty(){ return /^(text\/|application\/(json|javascript|xml|xhtml|rss|atom))/i.test(this.contentType) || this.isHtml; }
-  };
-  return res;
+/* ---------- utilidades ---------- */
+function lsGet(k,d){ try{var v=localStorage.getItem(k); return v===null?d:JSON.parse(v);}catch(e){return d;} }
+function lsSet(k,v){ try{localStorage.setItem(k,JSON.stringify(v));}catch(e){} }
+function hostOf(u){ try{ return new URL(u).host.toLowerCase(); }catch(e){ return ''; } }
+function isXfo(u){ var h=hostOf(u); if(!h) return false;
+  for(var i=0;i<XFO_HOSTS.length;i++){ var d=XFO_HOSTS[i]; if(h===d||h.slice(-(d.length+1))==='.'+d) return true; } return false; }
+function normalizeUrl(s){
+  s=(s||'').trim(); if(!s) return '';
+  if(ALIASES[s.toLowerCase()]) return ALIASES[s.toLowerCase()];
+  if(/^https?:\/\//i.test(s)) return s;
+  if(/^[\w-]+(\.[\w-]+)+(:\d+)?(\/|$|\?|#)/.test(s)) return 'https://'+s;
+  /* no parece URL -> búsqueda */
+  return SEARCH_URL+encodeURIComponent(s);
+}
+function unwrapRedirector(u){
+  try{
+    var U=new URL(u);
+    if(!/(^|\/)(l|redirect|goto|out|away|link|r)\/?$/i.test(U.pathname)) return u;
+    var keys=['uddg','url','u','q','target','dest','next','to'];
+    for(var i=0;i<keys.length;i++){ var v=U.searchParams.get(keys[i]);
+      if(v && /^https?:\/\//i.test(v)) return v; }
+  }catch(e){}
+  return u;
+}
+function toast(msg,type,ms){
+  var t=document.createElement('div'); t.className='toast '+(type||'info'); t.textContent=msg;
+  $('#toasts').appendChild(t);
+  setTimeout(function(){ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(function(){t.remove();},320); }, ms||(type==='err'?8000:4500));
+}
+function setChip(txt,cls){ chip.textContent=txt; chip.className=cls||''; }
+function startProgress(){ $('#progress').style.display='block'; }
+function stopProgress(){ $('#progress').style.display='none'; }
+function setAddr(u){ if(u) addr.value=u; }
+function showFrame(which){
+  var direct=which==='direct';
+  frameDirect.classList.toggle('hide',!direct);
+  frameProxy.classList.toggle('hide',direct);
+  $('#stage').classList.toggle('alt',!direct);
+}
+function fmtBytes(n){
+  if(n>=1048576) return (n/1048576).toFixed(1)+' MB';
+  if(n>=1024) return (n/1024).toFixed(1)+' KB';
+  return n+' B';
 }
 
-/* ── Escritor ZIP propio (método STORE, sin librerías) ── */
-const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++){ let c = n; for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
-function crc32(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
-function makeZip(entryName, u8){
-  const nb = new TextEncoder().encode(entryName);
-  const now = new Date();
-  const dTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
-  const dDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
-  const crc = crc32(u8), sz = u8.length;
-  const lh = new Uint8Array(30 + nb.length); const lv = new DataView(lh.buffer);
-  lv.setUint32(0, 0x04034b50, true); lv.setUint16(4, 20, true); lv.setUint16(6, 0, true); lv.setUint16(8, 0, true);
-  lv.setUint16(10, dTime, true); lv.setUint16(12, dDate, true); lv.setUint32(14, crc, true);
-  lv.setUint32(18, sz, true); lv.setUint32(22, sz, true); lv.setUint16(26, nb.length, true); lv.setUint16(28, 0, true);
-  lh.set(nb, 30);
-  const ch = new Uint8Array(46 + nb.length); const cv = new DataView(ch.buffer);
-  cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
-  cv.setUint16(8, 0, true); cv.setUint16(10, 0, true); cv.setUint16(12, dTime, true); cv.setUint16(14, dDate, true);
-  cv.setUint32(16, crc, true); cv.setUint32(20, sz, true); cv.setUint32(24, sz, true); cv.setUint16(28, nb.length, true);
-  cv.setUint32(42, 0, true); ch.set(nb, 46);
-  const ev = new DataView(new ArrayBuffer(22));
-  ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, 1, true); ev.setUint16(10, 1, true);
-  ev.setUint32(12, 46 + nb.length, true); ev.setUint32(16, 30 + nb.length + sz, true); ev.setUint16(20, 0, true);
-  return new Blob([lh, u8, ch, new Uint8Array(ev.buffer)], { type:'application/zip' });
+/* ---------- sonda de alcance (¿el sitio responde desde aquí?) ---------- */
+function probe(url,ms){
+  return new Promise(function(res){
+    var done=false, c=new AbortController();
+    var t=setTimeout(function(){ if(!done){done=true; try{c.abort();}catch(e){} res(false);} }, ms||PROBE_TIMEOUT);
+    fetch(url,{mode:'no-cors',cache:'no-store',redirect:'follow',signal:c.signal})
+      .then(function(){ if(!done){done=true; clearTimeout(t); res(true);} })
+      .catch(function(){ if(!done){done=true; clearTimeout(t); res(false);} });
+  });
 }
 
-/* ── Detección de acceso directo (dentro de la UCLV) ── */
-const Direct = {
-  cache: LS.get('direct', {}),
-  get(host){ const e = this.cache[host]; return (e && Date.now() - e.ts < 900000) ? !!e.ok : null; },
-  set(host, ok){ this.cache[host] = { ok, ts: Date.now() }; LS.set('direct', this.cache); },
-  probe(host){ if (!host || this.get(host) !== null) return; this.set(host, false);
-    sfetch('https://' + host + '/favicon.ico', { mode:'no-cors', timeout:4500 })
-      .then(() => { this.set(host, true); UI.log('acceso directo a ' + host + ' ✓ — los recursos cargarán sin proxy'); UI.sb('acceso directo a ' + host + ' ✓ — recursos sin proxy'); })
-      .catch(() => { this.set(host, false); }); }
-};
-
-/* ── Transporte WISP (libcurl.js sobre WebSocket) ── */
-const Wisp = {
-  lib: null, libFrom: null, ready: false, wsUrl: null, initP: null, lastErr: null, status: 'sin iniciar', _libP: null,
-  loadLib(){ if (this.lib) return Promise.resolve(this.lib); if (this._libP) return this._libP;
-    this._libP = (async () => {
-      for (const url of LIBCURL_CDNS){
-        try { UI.log('cargando libcurl.js ← ' + (url.split('/npm/')[1] || url));
-          await this.loadScript(url);
-          const lib = window.libcurl;
-          if (lib && typeof lib.fetch === 'function'){ this.lib = lib; this.libFrom = url; UI.log('libcurl.js cargado ✓'); return lib; }
-          UI.log('CDN respondió sin API usable');
-        } catch(e){ UI.log('CDN falló: ' + (url.split('/').pop() || url)); }
+/* ---------- carrera de proxies ---------- */
+function tryProxy(p,url,isPost,postBody){
+  return new Promise(function(res,rej){
+    var c=new AbortController();
+    var t=setTimeout(function(){ c.abort(); rej(new Error(p.id+': timeout')); }, PROXY_TIMEOUT);
+    var opts={method:isPost?'POST':'GET', signal:c.signal, cache:'no-store', redirect:'follow'};
+    if(isPost){ opts.headers={'Content-Type':'application/x-www-form-urlencoded'}; opts.body=postBody||''; }
+    fetch(p.mk(url),opts).then(function(r){
+      if(!r.ok){ clearTimeout(t); rej(new Error(p.id+': HTTP '+r.status)); return; }
+      if(p.kind==='json'){
+        r.json().then(function(j){
+          clearTimeout(t);
+          var c2=j&&j.contents!=null?String(j.contents):'';
+          if(c2.length<80) rej(new Error(p.id+': contenido vacío')); else res({via:p.id, text:c2});
+        },function(){ clearTimeout(t); rej(new Error(p.id+': JSON inválido')); });
+      }else{
+        r.arrayBuffer().then(function(b){
+          clearTimeout(t);
+          if(b.byteLength<80){ rej(new Error(p.id+': contenido vacío')); return; }
+          res({via:p.id, buf:b, ct:r.headers.get('content-type')||''});
+        },function(){ clearTimeout(t); rej(new Error(p.id+': lectura fallida')); });
       }
-      throw new Error('no se pudo cargar libcurl.js de ningún CDN (¿lo bloquea tu red?)');
-    })();
-    const clear = () => { this._libP = null; }; this._libP.then(clear, clear);
-    return this._libP; },
-  loadScript(url){ return new Promise((res, rej) => {
-      const s = document.createElement('script'); let done = false;
-      const ok = () => { if (done) return; done = true; res(); };
-      const bad = () => { if (done) return; done = true; try { s.remove(); } catch(e){} rej(new Error('no cargó')); };
-      s.src = url; s.async = true;
-      s.onload = () => { window.addEventListener('libcurl_load', ok, { once:true }); setTimeout(ok, 12000); };
-      s.onerror = bad;
-      document.head.appendChild(s);
-      setTimeout(bad, 25000); }); },
-  init(force){ if (this.ready) return Promise.resolve(true);
-    if (this.initP && !force) return this.initP;
-    this.initP = (async () => {
-      this.ready = false; this.lastErr = null; this.status = 'conectando…';
-      try {
-        const lib = await this.loadLib();
-        const servers = cfg.wisp.map(s => String(s).trim()).filter(Boolean).map(s => /\/$/.test(s) ? s : s + '/');
-        if (!servers.length) throw new Error('no hay servidores WISP configurados');
-        for (const w of servers){
-          try { UI.log('probando WISP ' + w);
-            lib.set_websocket(w);
-            const r = await withTimeout(Promise.resolve(lib.fetch('https://example.com/', { method:'GET' })), 12000, 'sin respuesta');
-            if (r && r.status){
-              this.ready = true; this.wsUrl = w;
-              this.status = 'WISP · ' + w.replace(/^wss:\/\//, '').replace(/\/+$/, '');
-              UI.chip('ok', this.status); UI.sb('libcurl.js ✓ · ' + this.status + ' (TLS dentro del navegador)');
-              UI.log('WISP conectado ✓ ' + w);
-              return true; }
-          } catch(e){ this.lastErr = e; UI.log('✗ WISP ' + w + ' → ' + ((e && e.message) || e)); }
-        }
-        throw new Error('ningún servidor WISP respondió' + (this.lastErr ? ' (' + this.lastErr.message + ')' : ''));
-      } catch(e){
-        this.status = 'WISP no disponible'; this.lastErr = e;
-        UI.chip('bad', 'sin WISP · usando proxies'); UI.sb('WISP no disponible: ' + ((e && e.message) || e));
-        return false;
-      } finally { this.initP = null; }
-    })();
-    return this.initP; },
-  async fetch(url, opts){ opts = opts || {};
-    if (!this.ready){ const ok = await this.init(); if (!ok) throw new Error((this.lastErr && this.lastErr.message) || 'WISP no disponible'); }
-    const r = await withTimeout(Promise.resolve(this.lib.fetch(url, {
-      method: opts.method || 'GET',
-      headers: opts.reqHeaders && Object.keys(opts.reqHeaders).length ? opts.reqHeaders : undefined,
-      body: (opts.body != null && opts.method && opts.method !== 'GET' && opts.method !== 'HEAD') ? opts.body : undefined,
-      signal: opts.signal })), opts.timeout || 35000, 'WISP: tiempo agotado');
-    const headers = {};
-    try {
-      if (Array.isArray(r.raw_headers)){ for (const p of r.raw_headers){ if (Array.isArray(p)) headers[String(p[0]).toLowerCase()] = String(p[1]); } }
-      else if (r.headers && typeof r.headers.forEach === 'function') r.headers.forEach((v, k) => { headers[String(k).toLowerCase()] = String(v); });
-    } catch(e){}
-    const buf = await r.arrayBuffer();
-    return mkRes({ url, finalUrl: url, status: r.status, headers, bytes: new Uint8Array(buf) }); }
-};
+    },function(e){ clearTimeout(t); rej(new Error(p.id+': '+(e&&e.name==='AbortError'?'timeout':'red'))); });
+  });
+}
+function proxyRace(url,isPost,postBody){
+  lastAttempts=[];
+  return new Promise(function(res){
+    var pending=PROXIES.length, done=false;
+    if(!pending) return res(null);
+    PROXIES.forEach(function(p){
+      tryProxy(p,url,isPost,postBody).then(function(r){
+        if(done) return; done=true; res(Object.assign(r,{attempts:lastAttempts}));
+        try{ lsSet('kalm.lastproxy',{id:r.via,at:Date.now()}); }catch(e){}
+      },function(err){
+        lastAttempts.push(String(err&&err.message||err));
+        if(--pending===0 && !done){ done=true; res(null); }
+      });
+    });
+  });
+}
+/* descarga binaria por proxies 'raw' (para ZIP) */
+function binaryRace(url){
+  var raws=PROXIES.filter(function(p){return p.kind==='raw';});
+  return new Promise(function(res){
+    var pending=raws.length, done=false;
+    raws.forEach(function(p){
+      tryProxy(p,url).then(function(r){ if(!done){done=true; res(r.buf);} },
+        function(){ if(--pending===0 && !done){done=true; res(null);} });
+    });
+  });
+}
+function decodeBody(buf,ct){
+  var cs='utf-8';
+  try{
+    var head=new TextDecoder('latin1').decode(buf.subarray(0,4096));
+    var m=head.match(/charset\s*=\s*["']?\s*([\w-]+)/i)||String(ct||'').match(/charset=([\w-]+)/i);
+    if(m) cs=m[1].toLowerCase();
+  }catch(e){}
+  try{ return new TextDecoder(cs).decode(buf); }catch(e){ return new TextDecoder('utf-8').decode(buf); }
+}
 
-/* ── Transporte de proxies CORS con failover ─────── */
-const Proxy = {
-  order: LS.get('proxyOrder', null), best: null, racedOnce: false,
-  myOrder(){ const by = {}; PROVIDERS.forEach(p => { by[p.id] = p; });
-    const out = [];
-    if (Array.isArray(this.order)) for (const id of this.order) if (by[id]){ out.push(by[id]); delete by[id]; }
-    for (const k in by) out.push(by[k]);
-    return out; },
-  promote(id){ const o = this.myOrder().map(p => p.id); const i = o.indexOf(id);
-    if (i > 0){ o.splice(i, 1); o.unshift(id); }
-    this.order = o; LS.set('proxyOrder', o);
-    this.best = PROVIDERS.find(p => p.id === id) || this.best; },
-  valid(res, expect){ if (!res || res.status >= 400 || !res.bytes || res.bytes.length < 40) return false;
-    if (expect === 'html') return res.isHtml;
-    if (expect === 'css') return /text\/css/i.test(res.contentType);
-    return true; },
-  async single(p, url, opts){ opts = opts || {};
-    const u = p.build(url); const method = opts.method || 'GET';
-    const r = await sfetch(u, { method, headers: Object.assign({}, p.headers || {}, opts.reqHeaders || {}),
-      body: (method === 'GET' || method === 'HEAD') ? undefined : (opts.body || undefined),
-      timeout: opts.timeout || (opts.download ? 90000 : 15000), signal: opts.signal });
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const bytes = await readBody(r, opts.onProgress || null);
-    const headers = {}; r.headers.forEach((v, k) => { headers[String(k).toLowerCase()] = String(v); });
-    if (p.json){
-      let j = null; try { j = JSON.parse(new TextDecoder('utf-8', { fatal:false }).decode(bytes)); } catch(e){}
-      const contents = j && j[p.json];
-      if (contents == null || contents === '') throw new Error('respuesta vacía del proxy');
-      return mkRes({ url, finalUrl: url, status: 200, headers: { 'content-type': (j && j.contentType) || 'text/html; charset=utf-8' }, bytes: new TextEncoder().encode(String(contents)) });
+/* ---------- reescritura del HTML en modo proxy ---------- */
+function rewriteHTML(html,baseUrl){
+  var doc=null;
+  try{ doc=new DOMParser().parseFromString(html,'text/html'); }catch(e){ return null; }
+  if(!doc||!doc.documentElement) return null;
+  /* quitar CSP, charsets y <base> originales */
+  doc.querySelectorAll('meta[http-equiv]').forEach(function(m){
+    var v=(m.getAttribute('http-equiv')||'').toLowerCase();
+    if(v==='content-security-policy'||v==='charset'||v==='x-frame-options') m.remove();
+  });
+  doc.querySelectorAll('meta[charset]').forEach(function(m){ m.remove(); });
+  doc.querySelectorAll('base').forEach(function(b){ b.remove(); });
+  doc.querySelectorAll('[integrity]').forEach(function(e){ e.removeAttribute('integrity'); });
+  doc.querySelectorAll('[crossorigin]').forEach(function(e){ e.removeAttribute('crossorigin'); });
+  doc.querySelectorAll('link[rel="manifest"],link[rel="modulepreload"]').forEach(function(e){ e.remove(); });
+  /* meta refresh: absolutizar para que base lo resuelva bien */
+  doc.querySelectorAll('meta[http-equiv="refresh"]').forEach(function(m){
+    var c=m.getAttribute('content')||'';
+    var mm=c.match(/^\s*(\d+)\s*;\s*url\s*=\s*"?([^"]+)"?/i);
+    if(mm){ try{ m.setAttribute('content',mm[1]+'; url='+new URL(mm[2],baseUrl).href); }catch(e){} }
+  });
+  var head=doc.head||doc.documentElement;
+  var meta=doc.createElement('meta'); meta.setAttribute('charset','utf-8');
+  head.insertBefore(meta,head.firstChild);
+  var base=doc.createElement('base'); base.setAttribute('href',baseUrl);
+  head.insertBefore(base,meta.nextSibling);
+  var shim=doc.createElement('script'); shim.textContent=$('#tpl-shim').textContent;
+  head.insertBefore(shim,base.nextSibling);
+  var hook=doc.createElement('script'); hook.textContent=$('#tpl-hook').textContent;
+  (doc.body||doc.documentElement).appendChild(hook);
+  return '<!DOCTYPE html>'+doc.documentElement.outerHTML;
+}
+</script>
+<script>
+/* ---------- gestión de capas: 'direct' | 'proxy' | 'home' | 'err' ---------- */
+function showFrame(which){
+  frameDirect.classList.toggle('hide', which!=='direct');
+  frameProxy.classList.toggle('hide', which!=='proxy');
+  $('#homeLayer').classList.toggle('hide', which!=='home');
+  $('#errLayer').classList.toggle('hide', which!=='err');
+  $('#stage').classList.toggle('alt', which!=='direct');
+}
+/* ---------- render en modo proxy ---------- */
+function renderProxy(url,res){
+  cur.url=url; cur.via='Proxy · '+res.via; cur.kind='proxy';
+  var html=res.text!=null?res.text:decodeBody(res.buf,res.ct);
+  var out=rewriteHTML(html,url);
+  if(!out){ toast('El contenido recibido no es HTML válido','err'); errorPage(url,['Respuesta no HTML vía '+res.via]); return; }
+  showFrame('proxy');
+  frameProxy.srcdoc=out;
+  setAddr(url); setChip(cur.via,'ok'); stopProgress();
+  updateNavBtns();
+}
+/* ---------- navegación directa ---------- */
+function directNav(url){
+  cur.url=url; cur.via='Directo'; cur.kind='direct';
+  showFrame('direct');
+  frameDirect.src=url;
+  setAddr(url); setChip('Directo','direct'); startProgress(); updateNavBtns();
+  if(!directToastShown){
+    directToastShown=true;
+    toast('Modo directo: los clics dentro del sitio no se reflejan en la barra. Si la página queda en blanco, el sitio bloquea el enmarcado — usa el modo Proxy.','info',9000);
+  }
+}
+/* ---------- página de inicio (capa DIV, sin iframe) ---------- */
+function homePage(){
+  cur.url=''; cur.via='Inicio'; cur.kind='home';
+  showFrame('home'); setChip('Inicio',''); stopProgress();
+  var q=$('#hq'); if(q) q.value='';
+  updateNavBtns();
+}
+/* ---------- página de error (capa DIV, sin iframe) ---------- */
+function errorPage(url,attempts){
+  cur.url=url; cur.via='Error'; cur.kind='err';
+  stopProgress(); setChip('Error','err');
+  showFrame('err');
+  var esc=function(s){ return String(s).replace(/</g,'&lt;'); };
+  var list=(attempts&&attempts.length)?attempts.slice(0,6):['Sin detalles'];
+  $('#errLayer').innerHTML='<div class="errcard">'
+    +'<h2>No se pudo cargar la página</h2>'
+    +'<div class="eu">'+esc(url)+'</div>'
+    +'<p>Se probaron la conexión directa y toda la cadena de proxies públicos. Causas posibles:</p>'
+    +'<ul><li>El sitio solo está disponible dentro de Cuba (típico en .cu) y tu red no llega a él.</li>'
+    +'<li>Los proxies públicos están saturados o caídos hoy.</li>'
+    +'<li>La dirección es incorrecta o el sitio está caído.</li></ul>'
+    +'<ul>'+list.map(function(a){ return '<li style="margin:4px 0">'+esc(a)+'</li>'; }).join('')+'</ul>'
+    +'<div class="btnrow">'
+    +'<button class="btn" id="eRetry">Reintentar</button>'
+    +'<button class="btn" id="eDirect">Abrir en modo directo</button>'
+    +'<button class="btn" id="eExt">Abrir en pestaña real</button>'
+    +'</div></div>';
+  $('#eRetry').addEventListener('click',function(){ navigate(cur.url,{push:false}); });
+  $('#eDirect').addEventListener('click',function(){
+    cfg.mode='direct'; syncCfgUI(); saveCfg(); directNav(cur.url);
+  });
+  $('#eExt').addEventListener('click',function(){ openExternal(cur.url); });
+}
+/* ---------- historial ---------- */
+function pushUrl(u){
+  if(hist[hi]===u) return;
+  hist=hist.slice(0,hi+1); hist.push(u); hi=hist.length-1; updateNavBtns();
+}
+function updateNavBtns(){ $('#bBack').disabled=hi<=0; $('#bFwd').disabled=hi>=hist.length-1; }
+function goBack(){ if(hi>0){ hi--; navigate(hist[hi],{push:false}); } }
+function goFwd(){ if(hi<hist.length-1){ hi++; navigate(hist[hi],{push:false}); } }
+/* ---------- enrutador principal ---------- */
+function navigate(url,opts){
+  opts=opts||{};
+  url=normalizeUrl(url); if(!url) return;
+  setAddr(url);
+  if(opts.push!==false) pushUrl(url);
+  var mode=cfg.mode;
+  if(mode==='direct') return directNav(url);
+  if(mode==='proxy')  return proxyNav(url,{directFallback:false});
+  /* --- AUTO --- */
+  if(isXfo(url)) return proxyNav(url,{directFallback:false});
+  if(location.protocol==='https:'&&url.toLowerCase().indexOf('http:')===0){
+    return proxyNav(url,{directFallback:true});
+  }
+  startProgress(); setChip('Comprobando '+hostOf(url)+'\u2026','busy');
+  probe(url).then(function(ok){
+    if(ok) directNav(url);
+    else   proxyNav(url,{directFallback:true});
+  });
+}
+function proxyNav(url,opts){
+  opts=opts||{};
+  startProgress(); setChip('Buscando ruta\u2026','busy');
+  proxyRace(url).then(function(res){
+    if(res) renderProxy(url,res);
+    else if(opts.directFallback){
+      toast('Proxies no disponibles \u2014 abriendo en modo directo','warn');
+      directNav(url);
+    }else{
+      errorPage(url,lastAttempts);
     }
-    /* ojo: finalUrl SIEMPRE el destino pedido — r.url de un proxy corrompería <base> */
-    return mkRes({ url, finalUrl: url, status: r.status, headers, bytes }); },
-  async raceAll(url, opts){ const expect = opts.expect || 'any'; const ps = this.myOrder();
-    UI.log('compitiendo ' + ps.length + ' proxies en paralelo…');
-    const tasks = ps.map(async p => {
-      const t0 = performance.now();
-      const res = await this.single(p, url, Object.assign({}, opts, { onProgress: null, timeout: 15000 }));
-      if (!this.valid(res, expect)) throw new Error(p.name + ': respuesta inválida');
-      p._ms = Math.round(performance.now() - t0);
-      return { p, res }; });
-    try { const w = await Promise.any(tasks);
-      this.promote(w.p.id); this.best = w.p;
-      UI.log('✓ proxy ganador: ' + w.p.name + ' (' + w.p._ms + ' ms)');
-      return w.res;
-    } catch(e){
-      const errs = ((e && e.errors) || []).map(x => String((x && x.message) || x)).slice(0, 4);
-      throw new Error('todos los proxies fallaron: ' + (errs.join(' | ') || 'sin detalle')); } },
-  async fetch(url, opts){ opts = opts || {};
-    UI.chip('busy', 'buscando ruta (proxies)…');
-    const mine = this.myOrder();
-    if (!this.racedOnce){ this.racedOnce = true;
-      try { const res = await this.raceAll(url, opts);
-        UI.chip('ok', 'PROXY · ' + this.best.name); UI.sb('sin WISP — proxy activo: ' + this.best.name);
-        return res;
-      } catch(e){ UI.log('carrera completa falló: ' + ((e && e.message) || e)); } }
-    const errs = [];
-    for (const p of mine.slice(0, 4)){
-      try { UI.log('probando proxy ' + p.name + '…');
-        const res = await this.single(p, url, opts);
-        if (!this.valid(res, opts.expect || 'any')) throw new Error('respuesta inválida');
-        this.best = p; UI.chip('ok', 'PROXY · ' + p.name);
-        return res;
-      } catch(e){ errs.push(p.name + ' (' + ((e && e.message) || e) + ')'); UI.log('✗ ' + p.name + ': ' + ((e && e.message) || e));
-        if (opts.signal && opts.signal.aborted) break; } }
-    this.racedOnce = false;
-    throw new Error(errs.length ? errs.join(' | ') : 'proxies no disponibles'); }
-};
-
-/* ── Orquestador: WISP → proxies (→ error con detalles) ── */
-async function fetchFlow(url, opts){ opts = opts || {}; const attempts = [];
-  if (cfg.mode !== 'proxy'){
-    if (!Wisp.ready && Wisp.initP){ if (!opts.quiet) UI.log('esperando inicialización de WISP…');
-      await Promise.race([Wisp.initP.catch(() => false), sleep(8000)]); }
-    if (Wisp.ready){ try { return await Wisp.fetch(url, opts); }
-      catch(e){ attempts.push(['WISP (' + (Wisp.wsUrl || '') + ')', (e && e.message) || String(e)]);
-        UI.log('✗ WISP: ' + ((e && e.message) || e));
-        if (opts.signal && opts.signal.aborted) throw e; } }
-    else if (cfg.mode === 'wisp'){ attempts.push(['WISP', (Wisp.lastErr && Wisp.lastErr.message) || 'no disponible']);
-      UI.log('✗ WISP: ' + ((Wisp.lastErr && Wisp.lastErr.message) || 'no disponible')); }
-    else if (!opts.quiet){ UI.log('WISP no disponible — saliendo por proxies CORS'); } }
-  if (cfg.mode !== 'wisp'){
-    try { return await Proxy.fetch(url, opts); }
-    catch(e){ attempts.push(['Proxies CORS', (e && e.message) || String(e)]);
-      if (opts.signal && opts.signal.aborted) throw e; } }
-  const err = new Error('WISP y proxies fallaron — sin ruta disponible');
-  err.attempts = attempts; throw err;
+  });
 }
-
-/* ── Puente fetch/XHR del iframe interno (mensajes) ── */
-async function bridgeFetch(d, port){ if (!port) return;
-  try {
-    const res = await fetchFlow(d.url, { method: d.method || 'GET', reqHeaders: d.headers || {}, body: d.body || null, quiet: true, timeout: 45000 });
-    const texty = res.isTexty || !res.contentType;
-    const payload = texty ? { text: decodeBytes(res.bytes, res.contentType) } : { b64: u8ToB64(res.bytes) };
-    port.postMessage(Object.assign({ t:'fetchres', status: res.status, headers: res.headers }, payload));
-  } catch(e){ try { port.postMessage({ t:'fetchres', err: String((e && e.message) || e) }); } catch(e2){} }
+function proxyPost(url,body){
+  startProgress(); setChip('Enviando\u2026','busy');
+  proxyRace(url,true,body).then(function(res){
+    if(res) renderProxy(url,res);
+    else toast('No se pudo enviar el formulario: todos los proxies fallaron','err');
+  });
 }
-
-/* ═══════ HOOK: se inyecta en el iframe interno (código autónomo) ═══════ */
-function KALM_HOOK(){
-  if (window.__kalm) return; window.__kalm = true;
-  var post = function (msg, tr) { try { msg.__kalm = 1; parent.postMessage(msg, '*', tr || []); } catch (e) {} };
-  var BASE = 'about:blank'; try { BASE = document.baseURI || location.href; } catch (e) {}
-  function abs(u) { try { return new URL(u, BASE).href; } catch (e) { return null; } }
-  /* shims de almacenamiento: el sandbox opaco lanza SecurityError */
-  function mkStore() { var m = {}; return {
-      getItem: function (k) { return Object.prototype.hasOwnProperty.call(m, k) ? m[k] : null; },
-      setItem: function (k, v) { m[k] = String(v); }, removeItem: function (k) { delete m[k]; },
-      clear: function () { m = {}; }, key: function (i) { var ks = Object.keys(m); return i < ks.length ? ks[i] : null; },
-      get length() { return Object.keys(m).length; } }; }
-  ['localStorage', 'sessionStorage'].forEach(function (nm) {
-    try { window[nm].getItem('k'); } catch (e) { try { Object.defineProperty(window, nm, { configurable: true, get: function () { return mkStore(); } }); } catch (e2) {} } });
-  try { Object.defineProperty(document, 'cookie', { configurable: true, get: function () { return ''; }, set: function () {} }); } catch (e) {}
-  function isDl(u) { return /\.(zip|rar|7z|tar|gz|tgz|apk|exe|msi|dmg|iso|img|bin|mp4|mkv|avi|mov|flv|wmv|webm|m4v|mp3|m4a|flac|ogg|wav|aac|pdf|docx?|xlsx?|pptx?|epub|torrent)([?#].*)?$/i.test(u); }
-  function nav(u) { if (u && /^https?:/i.test(u)) post({ t:'nav', url:u }); }
-  /* enlaces: captura antes que la página */
-  document.addEventListener('click', function (e) {
-    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var el = e.target; while (el && el.nodeType === 1 && el.nodeName !== 'A') el = el.parentNode;
-    if (!el || el.nodeType !== 1) return;
-    var href = el.getAttribute('href') || ''; if (!href || href.charAt(0) === '#') return;
-    var u = abs(href); if (!u || !/^https?:/i.test(u)) return;
-    e.preventDefault();
-    if (el.hasAttribute('download') || isDl(u)) { post({ t:'download', url:u, name: el.getAttribute('download') || '' }); return; }
-    post({ t:'nav', url:u });
-  }, true);
-  document.addEventListener('auxclick', function (e) {
-    if (e.button !== 1) return;
-    var el = e.target; while (el && el.nodeType === 1 && el.nodeName !== 'A') el = el.parentNode;
-    if (el && el.nodeType === 1) { var u = abs(el.getAttribute('href') || ''); if (u && /^https?:/i.test(u)) { e.preventDefault(); post({ t:'nav', url:u }); } }
-  }, true);
-  /* formularios: GET → navegar con query, POST → cuerpo vía puente */
-  document.addEventListener('submit', function (e) {
-    var f = e.target; if (!f || f.nodeName !== 'FORM') return; e.preventDefault();
-    var u = abs(f.getAttribute('action') || BASE); if (!u || !/^https?:/i.test(u)) return;
-    var method = (f.getAttribute('method') || 'get').toLowerCase();
-    try {
-      var pairs = [];
-      if (typeof FormData === 'function') { var fd = new FormData(f); fd.forEach(function (v, k) { if (typeof v === 'string') pairs.push([k, v]); }); }
-      if (method === 'get') { var U = new URL(u); U.search = new URLSearchParams(pairs).toString(); post({ t:'nav', url:U.href }); }
-      else post({ t:'navpost', url:u, body: new URLSearchParams(pairs).toString(), ct:'application/x-www-form-urlencoded' });
-    } catch (err) { post({ t:'nav', url:u }); }
-  }, true);
-  try { window.open = function (u) { if (u) nav(abs(String(u))); return null; }; } catch (e) {}
-  try { ['pushState', 'replaceState'].forEach(function (fn) { var o = history[fn]; if (!o) return;
-      history[fn] = function () { try { return o.apply(history, arguments); } catch (e) { return null; } }; }); } catch (e) {}
-  /* puente de red: fetch y XHR del sitio → padre → transporte */
-  var seq = 0;
-  function bridge(msg) { return new Promise(function (resolve, reject) {
-      var ch = new MessageChannel(); var done = false;
-      ch.port1.onmessage = function (ev) { var d = ev.data || {}; if (d.t !== 'fetchres') return; done = true;
-        if (d.err) reject(new Error(d.err)); else resolve(d); };
-      msg.id = ++seq; post(msg, [ch.port2]);
-      setTimeout(function () { try { ch.port1.close(); } catch (e) {} if (!done) reject(new Error('timeout del puente')); }, 120000); }); }
-  function b2u(b) { var s = atob(b), u = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
-  function payloadOf(d) { if (d.b64 != null) return b2u(d.b64); return d.text != null ? d.text : ''; }
-  if (typeof window.fetch === 'function') { var _f = window.fetch;
-    window.fetch = function (input, init) {
-      try {
-        init = init || {};
-        var url = (typeof input === 'string') ? input : (input && input.url) || '';
-        var method = String(init.method || (input && input.method) || 'GET').toUpperCase();
-        var headers = {}; var h = init.headers || (input && input.headers);
-        if (h) { if (typeof h.forEach === 'function') h.forEach(function (v, k) { headers[k] = v; }); else for (var k in h) headers[k] = h[k]; }
-        var body = (init.body != null) ? init.body : (input && input.body);
-        if (body != null && typeof body !== 'string') body = null;
-        return bridge({ t:'fetch', url: abs(url), method: method, headers: headers, body: body })
-          .then(function (d) { var nb = (d.status === 204 || d.status === 205 || d.status === 304) ? null : payloadOf(d);
-            return new Response(nb, { status: d.status || 200, headers: d.headers || {} }); });
-      } catch (e) { return _f.apply(window, arguments); } }; }
-  function KXHR() { var self = this;
-    this.readyState = 0; this.status = 0; this.statusText = ''; this.responseText = ''; this.response = ''; this.responseType = '';
-    this._h = {}; this._rh = {}; this._L = {};
-    this.open = function (m, u) { self._m = String(m || 'GET').toUpperCase(); self._u = abs(u) || u; self.readyState = 1; };
-    this.setRequestHeader = function (k, v) { self._h[k] = v; };
-    this.addEventListener = function (t, fn) { (self._L[t] = self._L[t] || []).push(fn); };
-    this.removeEventListener = function () {}; this.abort = function () {};
-    this.getAllResponseHeaders = function () { var s = ''; for (var k in self._rh) s += k + ': ' + self._rh[k] + '\r\n'; return s; };
-    this.getResponseHeader = function (k) { return self._rh[String(k).toLowerCase()] || null; };
-    this._fire = function (ev) { (self._L[ev] || []).forEach(function (f) { try { f({ target: self }); } catch (e) {} });
-      if (ev === 'load' && typeof self.onload === 'function') self.onload({ target: self });
-      if (ev === 'error' && typeof self.onerror === 'function') self.onerror({ target: self });
-      if (typeof self.onreadystatechange === 'function') self.onreadystatechange({ target: self }); };
-    this.send = function (body) {
-      bridge({ t:'fetch', url: self._u, method: self._m, headers: self._h, body: (typeof body === 'string' ? body : null) })
-        .then(function (d) {
-          self.status = d.status || 200; self._rh = {};
-          var hh = d.headers || {}; for (var k in hh) self._rh[String(k).toLowerCase()] = String(hh[k]);
-          if (d.b64 != null) { var u8 = b2u(d.b64);
-            self.response = (self.responseType === 'blob') ? new Blob([u8]) : ((self.responseType === 'arraybuffer') ? u8.buffer : u8);
-            self.responseText = ''; }
-          else { self.responseText = (d.text != null ? d.text : ''); self.response = self.responseText; }
-          self.readyState = 4; self._fire('load');
-        }).catch(function () { self.status = 0; self.readyState = 4; self._fire('error'); }); }; }
-  try { window.XMLHttpRequest = KXHR; } catch (e) {}
-  document.addEventListener('DOMContentLoaded', function () {
-    try { var m = document.querySelector('meta[http-equiv="refresh" i]');
-      if (m) { var c = m.getAttribute('content') || ''; var mm = c.match(/^\s*(\d+)\s*;\s*url\s*=\s*['"]?([^'";]+)/i);
-        if (mm) { var u = abs(mm[2].replace(/['"]+$/g, '').trim());
-          if (u) setTimeout(function () { nav(u); }, Math.max(0, parseInt(mm[1], 10) || 0) * 1000); } } } catch (e) {}
-    try { var t = document.querySelector('title'); if (t) post({ t:'title', title: t.textContent }); } catch (e) {} });
-  try { new MutationObserver(function () { var t = document.querySelector('title'); if (t && t.textContent) post({ t:'title', title: t.textContent }); })
-      .observe(document.documentElement || document, { subtree: true, childList: true, characterData: true }); } catch (e) {}
-  document.addEventListener('mouseover', function (e) {
-    var el = e.target; while (el && el.nodeType === 1 && el.nodeName !== 'A') el = el.parentNode;
-    if (el && el.nodeType === 1) { var u = abs(el.getAttribute('href') || ''); if (u && /^https?:/i.test(u)) post({ t:'hover', url:u }); } }, true);
-}
-
-/* ═══════ UI de la capa padre ═══════ */
-const UI = {
-  _tt: null,
-  chip(state, txt){ const c = $('chip'); c.className = 'chip ' + state; $('chipTxt').textContent = txt; },
-  sb(txt){ $('sbInfo').textContent = txt; },
-  hint(u){ $('sbHint').textContent = u || ''; },
-  log(line){ const ov = $('ovLog'); if (!ov) return; ov.style.display = 'block';
-    const li = document.createElement('li'); li.textContent = '· ' + line; ov.appendChild(li);
-    while (ov.children.length > 14) ov.removeChild(ov.firstChild); },
-  phase(t){ $('ovPhase').textContent = t; },
-  toast(msg, bad){ const t = $('toast'); t.textContent = msg; t.className = bad ? 'bad' : ''; t.classList.add('on');
-    clearTimeout(this._tt); this._tt = setTimeout(() => t.classList.remove('on'), 3400); }
-};
-function phase(t){ $('overlay').classList.add('on'); UI.phase(t); }
-function hideOverlay(){ $('overlay').classList.remove('on'); $('addrSpin').style.display = 'none'; }
-
-/* ═══════ Historial y navegación ═══════ */
-const State = { cur: null, stack: [], idx: -1, busy: false, ctl: null };
-let navToken = 0;
-function setAddr(u){ $('addr').value = u; }
-function updNavBtns(){ $('bBack').disabled = State.idx <= 0; $('bFwd').disabled = State.idx >= State.stack.length - 1; }
-function normalizeInput(s){ s = (s || '').trim(); if (!s) return cfg.home;
-  if (/^https?:\/\//i.test(s)) return s;
-  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return null;
-  if (/^[\w-]+(\.[\w-]+)+(:\d+)?([\/?#].*)?$/.test(s) || /^localhost(:\d+)?([\/?#].*)?$/i.test(s)) return 'https://' + s;
-  return SEARCH(s); }
-function fileNameFrom(res, url){
-  const m = /filename\*?=(?:UTF-8''|utf-8'')?"?([^";]+)"?/i.exec(res.disposition || '');
-  if (m){ try { return decodeURIComponent(m[1].trim()); } catch(e){ return m[1].trim(); } }
-  try { const p = new URL(url).pathname; const b = p.split('/').filter(Boolean).pop(); if (b) return decodeURIComponent(b); } catch(e){}
-  return 'archivo'; }
-
-function resUrl(u){ if (!/^https?:/i.test(u)) return u;
-  let host = ''; try { host = new URL(u).host; } catch(e){ return u; }
-  if (Direct.get(host)) return u;
-  const b = Proxy.best || Proxy.myOrder()[0];
-  return b ? b.build(u) : u; }
-
-function rewriteCss(css, baseUrl){ return css
-  .replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi, (m, q, u) => {
-    if (!u || /^(data|blob|about|javascript|mocha):/i.test(u) || u.charAt(0) === '#') return m;
-    const a = absUrl(u, baseUrl); return a ? 'url("' + resUrl(a) + '")' : m; })
-  .replace(/@import\s+(?!url\()(['"])([^'"]+)\1/gi, (m, q, u) => {
-    const a = absUrl(u, baseUrl); return a ? '@import "' + resUrl(a) + '"' : m; }); }
-
-async function rewriteDocument(res, pageUrl){
-  const baseUrl = res.finalUrl || pageUrl;
-  const text = decodeBytes(res.bytes, res.contentType);
-  const doc = new DOMParser().parseFromString(text, 'text/html');
-  doc.querySelectorAll('base').forEach(el => el.remove());
-  doc.querySelectorAll('meta').forEach(m => {
-    const he = (m.getAttribute('http-equiv') || '').toLowerCase();
-    if (he === 'content-security-policy'){ m.remove(); return; }
-    if (he === 'refresh'){ const c = m.getAttribute('content') || '';
-      const mm = c.match(/^\s*(\d+)\s*;\s*url\s*=\s*['"]?([^'";]+)/i);
-      if (mm){ const a = absUrl(mm[2].trim(), baseUrl); if (a) scheduleRefresh(+mm[1] || 0, a); }
-      m.remove(); } });
-  doc.querySelectorAll('[integrity]').forEach(el => el.removeAttribute('integrity'));
-  const SRC_ATTRS = ['src','poster','data-src','data-original','data-lazy-src'];
-  doc.querySelectorAll('img,source,video,audio,embed,track,iframe,input[type="image"]').forEach(el => {
-    SRC_ATTRS.forEach(at => { const v = el.getAttribute(at); if (!v) return;
-      const a = absUrl(v, baseUrl); if (a && /^https?:/i.test(a)) el.setAttribute(at, resUrl(a)); });
-    const ss = el.getAttribute('srcset') || el.getAttribute('data-srcset');
-    if (ss){ const mapped = ss.split(',').map(part => {
-        const t = part.trim().split(/\s+/); if (!t[0]) return null;
-        const a = absUrl(t[0], baseUrl); return a ? [resUrl(a)].concat(t.slice(1)).join(' ') : null;
-      }).filter(Boolean).join(', ');
-      if (mapped){ el.setAttribute('srcset', mapped); el.removeAttribute('data-srcset'); } } });
-  doc.querySelectorAll('script[src]').forEach(el => { const a = absUrl(el.getAttribute('src') || '', baseUrl);
-    if (a && /^https?:/i.test(a)) el.setAttribute('src', resUrl(a)); });
-  doc.querySelectorAll('a[href]').forEach(el => { const a = absUrl(el.getAttribute('href'), baseUrl); if (a) el.setAttribute('href', a); });
-  doc.querySelectorAll('form[action]').forEach(el => { const a = absUrl(el.getAttribute('action'), baseUrl); if (a) el.setAttribute('action', a); });
-  doc.querySelectorAll('[style]').forEach(el => { const v = el.getAttribute('style');
-    if (v && v.indexOf('url(') !== -1) el.setAttribute('style', rewriteCss(v, baseUrl)); });
-  doc.querySelectorAll('style').forEach(el => { if (el.textContent) el.textContent = rewriteCss(el.textContent, baseUrl); });
-  doc.querySelectorAll('link[href]').forEach(el => {
-    const rel = (el.getAttribute('rel') || '').toLowerCase();
-    if (/\b(manifest|modulepreload|preload|prefetch|preconnect|dns-prefetch)\b/.test(rel)){ el.remove(); return; }
-    const a = absUrl(el.getAttribute('href') || '', baseUrl);
-    if (!a || !/^https?:/i.test(a)){ el.remove(); return; }
-    if (rel.indexOf('stylesheet') !== -1){ el.setAttribute('href', resUrl(a)); el.removeAttribute('as'); el.removeAttribute('crossorigin'); return; }
-    if (/(icon|apple-touch)/.test(rel)){ el.setAttribute('href', resUrl(a)); el.removeAttribute('crossorigin'); } });
-  /* incrustar hojas de estilo: más fiable que <link> a través del proxy */
-  const links = Array.from(doc.querySelectorAll('link[rel~="stylesheet" i][href]')).slice(0, 8);
-  if (links.length){ phase('Cargando estilos (0/' + links.length + ')…');
-    let done = 0;
-    await Promise.all(links.map(async l => {
-      try { const a = absUrl(l.getAttribute('href'), baseUrl);
-        if (a && /^https?:/i.test(a)){
-          const r2 = await fetchFlow(a, { expect:'css', quiet:true, timeout:20000 });
-          if (r2 && r2.bytes && r2.bytes.length){
-            const st = doc.createElement('style'); st.setAttribute('data-kalm-src', a);
-            st.textContent = rewriteCss(decodeBytes(r2.bytes, r2.contentType), a);
-            l.replaceWith(st); } }
-      } catch(e){ UI.log('css sin cargar: ' + ((e && e.message) || e)); }
-      finally { done++; phase('Cargando estilos (' + done + '/' + links.length + ')…'); } })); }
-  /* <base> + hook, primero en <head> */
-  const head = doc.head || doc.documentElement;
-  const baseEl = doc.createElement('base'); baseEl.setAttribute('href', baseUrl);
-  const hookEl = doc.createElement('script'); hookEl.textContent = '(' + KALM_HOOK.toString() + ')();';
-  head.insertBefore(baseEl, head.firstChild);
-  head.insertBefore(hookEl, baseEl.nextSibling);
-  return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
-}
-
-function scheduleRefresh(sec, url){ const page = State.cur;
-  UI.log('redirección meta → ' + url + ' en ' + sec + 's');
-  setTimeout(() => { if (State.cur === page && url !== page) navigate(url, { raw:true }); }, Math.max(0, sec) * 1000); }
-
-function renderPlain(res, url){
-  const txt = decodeBytes(res.bytes, res.contentType);
-  let body; if (/json/i.test(res.contentType)){ try { body = '<pre>' + esc(JSON.stringify(JSON.parse(txt), null, 2)) + '</pre>'; } catch(e){ body = '<pre>' + esc(txt) + '</pre>'; } }
-  else body = '<pre>' + esc(txt) + '</pre>';
-  $('view').srcdoc = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>' + esc(url) + '</title><style>body{background:#0d1218;color:#d7e2ec;font:13px/1.6 ui-monospace,Consolas,monospace;padding:24px;white-space:pre-wrap;word-break:break-word}a{color:#4aa3ff}</style></head><body>' + body + '</body></html>';
-}
-
-function errorPage(url, attempts, msg){
-  const rows = attempts.length ? attempts.map(a => '<tr><td style="color:#2dd4a7;white-space:nowrap">' + esc(a[0]) + '</td><td style="color:#f0554f">' + esc(a[1] || '') + '</td></tr>').join('')
-    : '<tr><td colspan="2" style="color:#8b98a7">sin detalles</td></tr>';
-  return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Error · Kalm</title><style>'
-    + 'body{background:#0d1218;color:#e7eef5;font:15px/1.6 system-ui,sans-serif;display:grid;place-items:center;min-height:96vh;margin:0}'
-    + '.c{max-width:660px;width:92%;background:#141a22;border:1px solid rgba(255,255,255,.09);border-radius:16px;padding:26px}'
-    + 'h1{font-size:19px;margin:0 0 6px}.u{color:#8b98a7;font-size:12.5px;word-break:break-all;margin-bottom:14px}'
-    + 'table{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:14px}td{padding:6px 8px;border-top:1px solid rgba(255,255,255,.06);vertical-align:top}'
-    + '.h{font-size:12.5px;color:#8b98a7;line-height:1.7;background:#0a0e13;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;margin-bottom:16px}'
-    + '.b{display:flex;gap:10px;flex-wrap:wrap}button,a.b2{padding:9px 16px;border-radius:10px;font-size:13.5px;cursor:pointer;text-decoration:none}'
-    + 'button{background:linear-gradient(135deg,#2dd4a7,#17b58c);color:#04241c;font-weight:700;border:0}'
-    + 'a.b2{background:#1b232e;color:#e7eef5;border:1px solid rgba(255,255,255,.12)}'
-    + '</style></head><body><div class="c">'
-    + '<h1>No se pudo cargar la página</h1><div class="u">' + esc(url) + '</div>'
-    + '<div class="h"><b>Qué pasó:</b> ' + esc(msg || 'todos los transportes fallaron') + '.<br>'
-    + '<b>Qué puedes hacer:</b> 1) Dale a «Reintentar» — los proxies públicos van y vienen. '
-    + '2) Abre «Ajustes» (icono de arriba) → «Probar rutas» para ver qué vía funciona en tu red. '
-    + '3) Si estás FUERA de Cuba y el proxy llega a internet pero el sitio no responde, es que visuales.uclv.edu.cu está caído o solo accesible desde la isla. '
-    + '4) Puedes usar tu propio servidor WISP (instrucciones en Ajustes).</div>'
-    + '<table>' + rows + '</table>'
-    + '<div class="b"><button onclick="parent.postMessage({__kalm:1,t:\'retry\'},\'*\')">Reintentar</button>'
-    + '<a class="b2" href="' + esc(url) + '" target="_blank" rel="noopener">Abrir directo en pestaña nueva</a></div>'
-    + '</div></body></html>';
-}
-
-/* ═══════ Descargas: ZIP numerado desde 00001 ═══════ */
-const Downloads = {
-  seq: LS.get('seq', 0), items: 0,
-  open(v){ $('dlPanel').classList.toggle('on', v); },
-  badge(){ const b = $('dlBadge'); b.style.display = this.items ? 'grid' : 'none'; b.textContent = this.items; },
-  async start(url, opts){ opts = opts || {};
-    const empty = $('dlList').querySelector('.dlempty'); if (empty) empty.remove();
-    const row = document.createElement('div'); row.className = 'dlrow';
-    row.innerHTML = '<div class="t"><span class="n">preparando…</span><span class="s"></span></div>'
-      + '<div class="u">' + esc(url) + '</div><div class="bar"><i></i></div>';
-    $('dlList').prepend(row);
-    Downloads.open(true);
-    const nEl = row.querySelector('.n'), sEl = row.querySelector('.s'), bar = row.querySelector('.bar i');
-    try {
-      let res = opts.res, bytes = null;
-      if (res && res.bytes && res.bytes.length) bytes = res.bytes;
-      else { nEl.textContent = 'descargando…';
-        res = await fetchFlow(url, { expect:'any', download:true, timeout:150000,
-          onProgress: (f, got, total) => { bar.style.width = total ? Math.round(f * 100) + '%' : '30%';
-            sEl.textContent = total ? (Math.round(f * 100) + '% · ' + fmtSize(got) + ' / ' + fmtSize(total)) : fmtSize(got); } });
-        bytes = res.bytes; }
-      if (!bytes || !bytes.length) throw new Error('archivo vacío');
-      if (res.isHtml) throw new Error('el servidor devolvió HTML, no un archivo');
-      const name = String(opts.suggested || fileNameFrom(res, url)).split(/[\\\/]/).pop() || 'archivo';
-      nEl.textContent = 'comprimiendo en ZIP…'; await sleep(30);
-      Downloads.seq += 1; LS.set('seq', Downloads.seq);
-      const zipName = String(Downloads.seq).padStart(5, '0') + '.zip';
-      const blob = makeZip(name, bytes);
-      const a = document.createElement('a'); const ou = URL.createObjectURL(blob);
-      a.href = ou; a.download = zipName; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(ou), 30000);
-      Downloads.items += 1; Downloads.badge();
-      row.classList.add('ok');
-      nEl.textContent = zipName + ' ✓';
-      sEl.textContent = name + ' · ' + fmtSize(bytes.length);
-      bar.style.width = '100%';
-      UI.toast('Guardado ' + zipName + ' (contiene «' + name + '»)');
-    } catch(e){ row.classList.add('err');
-      row.querySelector('.n').textContent = 'error';
-      row.querySelector('.s').textContent = String((e && e.message) || e).slice(0, 80);
-      UI.toast('Descarga fallida: ' + ((e && e.message) || e), true); } },
-  reset(){ Downloads.seq = 0; LS.set('seq', 0); UI.toast('Numeración reiniciada — el próximo ZIP será 00001.zip'); }
-};
-
-/* ═══════ Navegación principal ═══════ */
-async function navigate(input, opts){ opts = opts || {};
-  let url;
-  if (opts.raw) url = input;
-  else { url = normalizeInput(input); if (!url){ UI.toast('URL no soportada', true); return; } }
-  const tok = ++navToken;
-  const ctl = new AbortController(); State.ctl = ctl;
-  State.busy = true;
-  $('addrSpin').style.display = 'block';
-  $('ovLog').innerHTML = ''; $('ovLog').style.display = 'none';
-  phase('Conectando…'); $('ovUrl').textContent = url; setAddr(url);
-  if (opts.push !== false){ State.stack = State.stack.slice(0, State.idx + 1); State.stack.push(url); State.idx = State.stack.length - 1; }
-  State.cur = url; updNavBtns();
-  try {
-    const res = await fetchFlow(url, { method: opts.method || 'GET', reqHeaders: opts.reqHeaders, body: opts.body,
-      expect:'html', signal: ctl.signal, timeout: 30000 });
-    if (tok !== navToken) return;
-    const binaryDoc = !res.isHtml && !res.isTexty;
-    if (binaryDoc || /attachment/i.test(res.disposition) || DOWNLOAD_EXTS.test(url)){
-      hideOverlay(); State.busy = false;
-      Downloads.start(url, { suggested: fileNameFrom(res, url), res }); return; }
-    if (!res.isHtml && res.isTexty){ hideOverlay(); State.busy = false; renderPlain(res, url); return; }
-    phase('Procesando página…');
-    const html = await rewriteDocument(res, url);
-    if (tok !== navToken) return;
-    $('view').srcdoc = html;
-  } catch(e){
-    if (tok !== navToken) return;
-    if ((e && e.name === 'AbortError') || ctl.signal.aborted){ hideOverlay(); }
-    else { $('view').srcdoc = errorPage(url, (e && e.attempts) || [], (e && e.message) || String(e));
-      hideOverlay(); UI.toast('No se pudo cargar: ' + ((e && e.message) || e), true); }
-    State.busy = false;
-  }
-}
-
-/* ═══════ Ajustes y diagnóstico ═══════ */
-function openSettings(v){ $('modal').classList.toggle('on', v);
-  if (v){ $('setWisp').value = cfg.wisp.join('\n'); $('setMode').value = cfg.mode; } }
-function saveCfg(){
-  cfg.wisp = $('setWisp').value.split('\n').map(s => s.trim()).filter(Boolean);
-  if (!cfg.wisp.length) cfg.wisp = DEFAULT_WISP.slice();
-  LS.set('wisp', cfg.wisp);
-  cfg.mode = $('setMode').value || 'auto'; LS.set('mode', cfg.mode);
-  Wisp.ready = false; Wisp.lastErr = null;
-  openSettings(false);
-  UI.toast('Configuración guardada — reconectando…');
-  Wisp.init(true);
-  navigate(State.cur || cfg.home, { raw:true, push:false });
-}
-function runDiag(){
-  const body = $('diagBody'); body.innerHTML = '';
-  const addRow = (name) => { const tr = document.createElement('tr');
-    tr.innerHTML = '<td>' + esc(name) + '</td><td><span class="st busy"></span>probando…</td><td style="color:var(--mut)">—</td>';
-    body.appendChild(tr);
-    return { tr, st: tr.querySelector('.st'), ok(){ this.st.className = 'st ok'; this.tr.children[1].innerHTML = '<span class="st ok"></span>funciona'; },
-      bad(t){ this.st.className = 'st bad'; this.tr.children[1].innerHTML = '<span class="st bad"></span>' + esc(t || 'falla'); },
-      det(t){ this.tr.children[2].textContent = t; } }; };
-  /* servidores WISP */
-  cfg.wisp.map(s => String(s).trim()).filter(Boolean).forEach(w => {
-    const r = addRow('WISP · ' + w); const t0 = performance.now(); let done = false; let ws;
-    try { ws = new WebSocket(w); } catch(e){ r.bad('error'); r.det(String(e)); return; }
-    const to = setTimeout(() => { if (done) return; done = true; try { ws.close(); } catch(e){} r.bad('sin respuesta'); r.det('timeout 6 s — caído o bloqueado'); }, 6000);
-    ws.onopen = () => { if (done) return; done = true; clearTimeout(to); try { ws.close(); } catch(e){} r.ok(); r.det(Math.round(performance.now() - t0) + ' ms'); };
-    ws.onerror = () => { if (done) return; done = true; clearTimeout(to); r.bad('no conecta'); r.det('Firefox no pudo abrir el túnel'); };
-    ws.onclose = () => { if (!done){ done = true; clearTimeout(to); r.bad('rechazado'); r.det('cerró sin completar apertura'); } }; });
-  /* libcurl.js */
-  { const r = addRow('libcurl.js (WASM) · CDN');
-    if (Wisp.lib){ r.ok(); r.det((Wisp.libFrom || '').split('/').pop() || 'en memoria'); }
-    else Wisp.loadLib().then(() => { r.ok(); r.det((Wisp.libFrom || '').split('/').pop()); })
-      .catch(e => { r.bad('no cargó'); r.det(String((e && e.message) || e).slice(0, 70)); }); }
-  /* acceso directo al sitio */
-  { let host = 'visuales.uclv.edu.cu'; try { host = new URL(State.cur || cfg.home).host; } catch(e){}
-    const r = addRow('Directo (sin proxy) · ' + host); const t0 = performance.now();
-    sfetch('https://' + host + '/favicon.ico', { mode:'no-cors', timeout:6000 })
-      .then(() => { r.ok(); r.det(Math.round(performance.now() - t0) + ' ms — tu red llega al sitio'); })
-      .catch(() => { r.bad('bloqueado'); r.det('normal si estás fuera de .edu.cu o tras un filtro'); }); }
-  /* proxies */
-  Proxy.myOrder().forEach(p => {
-    const r = addRow('PROXY · ' + p.name); const t0 = performance.now();
-    Proxy.single(p, 'https://example.com/', { timeout: 12000 })
-      .then(res => { if (res.bytes && res.bytes.length){ r.ok(); r.det(Math.round(performance.now() - t0) + ' ms'); } else throw new Error('vacío'); })
-      .catch(e => { r.bad(); r.det(String((e && e.message) || e).slice(0, 70)); }); });
-  /* el sitio a través del mejor proxy */
-  { const best = Proxy.best || Proxy.myOrder()[0]; const target = State.cur || cfg.home;
-    const r = addRow('PROXY ' + (best ? best.name : '') + ' → sitio destino');
-    Proxy.single(best, target, { timeout: 20000 })
-      .then(res => { r.ok(); r.det('HTTP ' + res.status + ' · ' + fmtSize(res.bytes && res.bytes.length) + ' — el sitio responde desde fuera'); })
-      .catch(() => { r.bad('el sitio no responde'); r.det('visuales.uclv.edu.cu puede estar caído o ser inaccesible desde el extranjero — no es culpa del proxy'); }); }
-}
-
-/* ═══════ Cableado de eventos ═══════ */
-window.addEventListener('message', ev => {
-  const d = ev.data; if (!d || d.__kalm !== 1) return;
-  switch (d.t){
-    case 'nav': navigate(d.url, { raw:true }); break;
-    case 'navpost': navigate(d.url, { raw:true, method:'POST', body:d.body, reqHeaders:{ 'Content-Type': d.ct || 'application/x-www-form-urlencoded' } }); break;
-    case 'download': Downloads.start(d.url, { suggested: d.name }); break;
-    case 'fetch': bridgeFetch(d, ev.ports && ev.ports[0]); break;
-    case 'title': if (d.title) document.title = d.title + ' · Kalm'; break;
-    case 'hover': UI.hint(d.url); break;
-    case 'retry': navigate(State.cur || cfg.home, { raw:true, push:false }); break;
-  }
+/* ---------- mensajes del iframe proxy ---------- */
+window.addEventListener('message',function(e){
+  var d=e.data; if(!d||d.k!=='kalm') return;
+  if(d.t==='nav'&&d.url){ navigate(unwrapRedirector(d.url),{push:true}); }
+  else if(d.t==='dl'&&d.url){ downloadFlow(d.url); }
+  else if(d.t==='post'&&d.url){ proxyPost(d.url,d.body||''); }
+  else if(d.t==='title'){ document.title=(d.title?d.title+' \u2014 ':'')+'Prx-KALM'; }
+  else if(d.t==='ready'){ stopProgress(); if(cur.kind==='proxy') setChip(cur.via,'ok'); }
 });
-$('view').addEventListener('load', () => { if (State.busy){ State.busy = false; hideOverlay(); } });
-$('addrForm').addEventListener('submit', e => { e.preventDefault(); navigate($('addr').value); });
-$('bBack').onclick = () => { if (State.idx > 0){ State.idx--; navigate(State.stack[State.idx], { raw:true, push:false }); } };
-$('bFwd').onclick = () => { if (State.idx < State.stack.length - 1){ State.idx++; navigate(State.stack[State.idx], { raw:true, push:false }); } };
-$('bRel').onclick = () => navigate(State.cur || cfg.home, { raw:true, push:false });
-$('bHome').onclick = () => navigate(cfg.home);
-$('bDl').onclick = () => Downloads.open(!$('dlPanel').classList.contains('on'));
-$('dlClose').onclick = () => Downloads.open(false);
-$('bSet').onclick = () => openSettings(true);
-$('chip').onclick = () => openSettings(true);
-$('btnDiag').onclick = runDiag;
-$('btnSeq').onclick = () => Downloads.reset();
-$('btnSave').onclick = saveCfg;
-$('ovCancel').onclick = () => { if (State.ctl){ try { State.ctl.abort(); } catch(e){} } hideOverlay(); };
-$('modal').addEventListener('click', e => { if (e.target === $('modal')) openSettings(false); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape'){ openSettings(false); Downloads.open(false); } });
+frameDirect.addEventListener('load',function(){
+  if(cur.kind==='direct'){ stopProgress(); setChip('Directo','direct'); }
+});
+frameProxy.addEventListener('load',function(){
+  if(cur.kind==='proxy'){ stopProgress(); setChip(cur.via||'Proxy','ok'); }
+});
+</script>
+<script>
+/* ---------- descargas ZIP con numeración 00001 ---------- */
+var jszipP=null;
+function loadJSZip(){
+  if(window.JSZip) return Promise.resolve();
+  if(!jszipP){
+    jszipP=new Promise(function(res,rej){
+      var s=document.createElement('script');
+      s.src=JSZIP_CDN; s.onload=function(){res();}; s.onerror=function(){rej(new Error('No se pudo cargar JSZip desde el CDN'));};
+      document.head.appendChild(s);
+    });
+  }
+  return jszipP;
+}
+function safeName(u){
+  try{
+    var U=new URL(u); var n=decodeURIComponent((U.pathname.split('/').pop()||'archivo'));
+    n=n.replace(/[^\w.\- ]+/g,'_').replace(/_+/g,'_').trim();
+    if(!n||n==='_') n='archivo';
+    if(n.length>60) n=n.slice(-60);
+    if(!/\.[a-z0-9]{1,6}$/i.test(n)) n+='.bin';
+    return n;
+  }catch(e){ return 'archivo.bin'; }
+}
+function nextSeq(){ return dlSeq; }
+function bumpSeq(){ dlSeq++; lsSet('kalm.seq',dlSeq); renderDlBadge(); }
+function renderDlBadge(){
+  var b=$('#dlBadge'); b.textContent=String(dlHist.length); b.style.display=dlHist.length?'grid':'none';
+}
+function renderDlList(){
+  var el=$('#dlList');
+  if(!dlHist.length){ el.innerHTML='<div class="empty">A\u00fan no hay descargas.<br>Los archivos se obtienen v\u00eda proxy y se guardan como ZIP numerado (00001, 00002\u2026).</div>'; return; }
+  var rows=dlHist.slice().reverse().map(function(d){
+    return '<tr><td><b>'+d.name+'</b><div class="u">'+d.url.replace(/</g,'&lt;')+'</div></td>'
+      +'<td style="white-space:nowrap">'+d.size+'</td><td style="white-space:nowrap;color:#8fa0ad">'+d.time+'</td></tr>';
+  }).join('');
+  el.innerHTML='<table><tr><th>Archivo</th><th>Tama\u00f1o</th><th>Hora</th></tr>'+rows+'</table>';
+}
+function downloadFlow(url){
+  toast('Preparando descarga ZIP\u2026','info');
+  setChip('Descargando\u2026','busy');
+  loadJSZip().then(function(){ return binaryRace(url); }).then(function(buf){
+    setChip(cur.via||'',''); 
+    if(!buf) throw new Error('Todos los proxies fallaron o el archivo supera el l\u00edmite.');
+    var name=safeName(url);
+    var zip=new window.JSZip(); zip.file(name,buf);
+    return zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}}).then(function(blob){
+      var seqStr=String(nextSeq()).padStart(5,'0');
+      var fname=seqStr+'_'+name;
+      if(!/\.zip$/i.test(name)) fname+='.zip';
+      var a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download=fname;
+      document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },4000);
+      bumpSeq();
+      dlHist.push({name:fname,url:url,size:fmtBytes(buf.byteLength),time:new Date().toLocaleTimeString()});
+      if(dlHist.length>40) dlHist.shift();
+      lsSet('kalm.dl',dlHist); renderDlBadge(); renderDlList();
+      toast('Guardado: '+fname+' ('+fmtBytes(buf.byteLength)+')','ok');
+    });
+  }).catch(function(err){
+    setChip(cur.via||'','');
+    toast('No se pudo obtener el archivo v\u00eda proxy: '+String(err&&err.message||err)+'. Los archivos de sitios .cu se descargan de forma nativa (clic dentro del sitio en modo directo).','err',10000);
+  });
+}
+/* descarga manual de la URL actual */
+function downloadCurrent(){ var u=cur.url; if(u&&/^https?:/i.test(u)) downloadFlow(u); else toast('Navega primero a un sitio para descargar','warn'); }
+function openExternal(u){
+  try{
+    var a=document.createElement('a'); a.href=u; a.target='_blank'; a.rel='noopener noreferrer';
+    document.body.appendChild(a); a.click(); setTimeout(function(){ a.remove(); },600);
+  }catch(e){}
+}
 
-/* ═══════ Arranque ═══════ */
-(function boot(){
-  document.title = 'Kalm · Navegador interno';
-  setAddr(cfg.home);
-  State.stack = [cfg.home]; State.idx = 0; updNavBtns();
-  UI.chip('busy', 'iniciando…');
-  let host = ''; try { host = new URL(cfg.home).host; } catch(e){}
-  if (host) Direct.probe(host);
-  Wisp.init();
-  setTimeout(() => navigate(cfg.home, { push:false }), 60);
+/* ---------- ajustes ---------- */
+function loadCfg(){
+  var c=lsGet('kalm.cfg',null);
+  if(c&&typeof c==='object'){ if(c.mode) cfg.mode=c.mode; if(c.home) cfg.home=c.home; }
+  dlSeq=lsGet('kalm.seq',1)||1;
+  dlHist=lsGet('kalm.dl',[])||[];
+}
+function saveCfg(){ lsSet('kalm.cfg',cfg); }
+function syncCfgUI(){ $('#cfgMode').value=cfg.mode; $('#cfgHome').value=cfg.home; }
+function openModal(id){ $(id).classList.add('open'); }
+function closeModal(id){ $(id).classList.remove('open'); }
+
+/* ---------- interfaz ---------- */
+$('#bBack').addEventListener('click',goBack);
+$('#bFwd').addEventListener('click',goFwd);
+$('#bReload').addEventListener('click',function(){
+  if(!cur.url||cur.kind==='home'){ homePage(); return; }
+  if(cur.kind==='direct'){ try{ frameDirect.src=cur.url; }catch(e){} }
+  else navigate(cur.url,{push:false});
+});
+$('#bHome').addEventListener('click',function(){ homePage(); });
+$('#bCfg').addEventListener('click',function(){ syncCfgUI(); openModal('#mCfg'); });
+$('#cfgClose').addEventListener('click',function(){ closeModal('#mCfg'); });
+$('#cfgSave').addEventListener('click',function(){
+  cfg.mode=$('#cfgMode').value;
+  var h=$('#cfgHome').value.trim();
+  if(h){ h=normalizeUrl(h); cfg.home=h; }
+  saveCfg(); closeModal('#mCfg'); toast('Ajustes guardados','ok');
+});
+$('#cfgReset').addEventListener('click',function(){
+  cfg={mode:'auto',home:DEFAULT_HOME}; saveCfg(); syncCfgUI(); toast('Ajustes restaurados','info');
+});
+$('#bDl').addEventListener('click',function(){ renderDlList(); openModal('#mDl'); });
+$('#dlClose').addEventListener('click',function(){ closeModal('#mDl'); });
+$('#dlClear').addEventListener('click',function(){ dlHist=[]; lsSet('kalm.dl',dlHist); renderDlBadge(); renderDlList(); });
+$('#bDl').addEventListener('dblclick',downloadCurrent);
+$('#go').addEventListener('click',function(){ navigate(addr.value,{push:true}); });
+/* capa de inicio: búsqueda y enlaces rápidos */
+$('#hgo').addEventListener('click',function(){ navigate($('#hq').value,{push:true}); });
+$('#hq').addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); navigate($('#hq').value,{push:true}); } });
+(function(){
+  var lks=document.querySelectorAll('#homeLayer .lk');
+  for(var i=0;i<lks.length;i++){
+    (function(b){ b.addEventListener('click',function(){ navigate(b.getAttribute('data-u'),{push:true}); }); })(lks[i]);
+  }
 })();
-
+addr.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); navigate(addr.value,{push:true}); } });
+addr.addEventListener('focus',function(){ addr.select(); });
+document.addEventListener('keydown',function(e){
+  if(e.key==='Escape'){ closeModal('#mCfg'); closeModal('#mDl'); }
 });
+/* arranque */
+loadCfg(); renderDlBadge(); syncCfgUI(); updateNavBtns();
+var bootUrl=null;
+try{
+  var hm=location.hash.match(/^#k=(.+)$/);
+  if(hm){ bootUrl=decodeURIComponent(hm[1]); }
+}catch(e){}
+homePage();
+navigate(bootUrl||cfg.home||DEFAULT_HOME,{push:true});
 </script>
 </body>
 </html>
