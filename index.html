@@ -297,7 +297,7 @@
 
         <details>
           <summary>Acerca de KALM</summary>
-          <p><b>KALM</b> es un «navegador dentro del navegador»: carga páginas en un marco interno sin Service Worker. Modo <b>Directo</b>: el sitio se carga nativo en el marco (ideal para visuales.uclv.edu.cu desde Cuba, cero intermediarios). Modo <b>Proxy</b>: el HTML se descarga, se reescriben las URLs y se muestra aislado (sandbox). Incluye descargas comprimidas en ZIP con numeración automática desde 00001. Inspirado en la arquitectura GUST (libcurl.js + túnel WISP opcional).</p>
+          <p><b>KALM v4.2</b> es un «navegador dentro del navegador»: carga páginas en un marco interno sin Service Worker. Modo <b>Directo</b>: el sitio se carga nativo en el marco (única vía para los .cu desde Cuba — los proxies extranjeros reciben geo-bloqueo del origen cubano—). Modo <b>Proxy</b> (solo sitios internacionales): el HTML se descarga, se reescriben las URLs y se muestra aislado (sandbox). Incluye descargas comprimidas en ZIP con numeración automática desde 00001. Inspirado en la arquitectura GUST (libcurl.js + túnel WISP opcional). Si ves esta versión en Ajustes, el archivo desplegado está actualizado.</p>
         </details>
 
         <div class="btnrow">
@@ -374,6 +374,16 @@ const settings={
 let prefs={};
 try{ prefs=JSON.parse(lsGet(K.prefs,'{}'))||{}; }catch(e){ prefs={}; }
 function savePrefs(){ lsSet(K.prefs,JSON.stringify(prefs)); }
+
+/* MIGRACIÓN v4.2: los .cu son geo-bloqueados por TODOS los proxies extranjeros.
+   Ningún .cu debe tener preferencia 'proxy' guardada: se purga al arrancar. */
+(function(){
+  let ch=false;
+  Object.keys(prefs).forEach(function(h){
+    if(prefs[h]==='proxy'&&(h==='cu'||/\.cu$/.test(h))){ delete prefs[h]; ch=true; }
+  });
+  if(ch) savePrefs();
+})();
 
 /* ════════════════ 3. Salud de proxies ════════════════ */
 let health={};
@@ -567,6 +577,10 @@ function isSearchUrl(u){ return typeof u==='string'&&u.indexOf(SEARCH_BASE)===0;
 function autoPickMode(url){
   try{
     const u=new URL(url);
+    /* REGLA DEFINITIVA: un .cu SIEMPRE va en modo directo. Los proxies viven fuera de
+       Cuba y el origen cubano les da geo-bloqueo (522/429/500 para siempre). Ni una
+       sola petición proxy para .cu: cero errores de consola, carga garantizada. */
+    if(isCuHost(url)) return 'direct';
     if(location.protocol==='https:'&&u.protocol==='http:') return 'proxy'; // contenido mixto
     if(isSearchUrl(url)) return 'proxy';
     const pref=prefs[u.hostname];
@@ -622,6 +636,17 @@ function navigate(input,opts){
   state.current=url; state.loading=true;
   addr.value=url;
   const mode=opts.mode||autoPickMode(url);
+  /* Contenido mixto: una página http:// no puede enmarcarse dentro de un sitio https://
+     (el navegador lo bloquea). Explicarlo en vez de mostrar un marco roto. */
+  if(mode==='direct'&&location.protocol==='https:'&&u.protocol==='http:'){
+    state.current=url; addr.value=url; state.loading=false;
+    setModeUI('direct');
+    if(opts.push!==false) pushHistory(url);
+    document.title='Prx-KALM — '+(u.hostname||'página');
+    swapFrame(mixedPage(url));
+    showStatus('Este sitio usa http:// y KALM está servido por https://: el navegador bloquea enmarcarlo. Usa el botón «Abrir en pestaña nueva» (↗) para visitarlo.','warn',true);
+    return;
+  }
   setModeUI(mode);
   if(opts.push!==false) pushHistory(url);
   document.title='Prx-KALM — '+(u.hostname||'página');
@@ -660,6 +685,12 @@ function renderDirect(url,seq){
 
 /* ───────── Modo PROXY: descargar → reescribir → srcdoc aislado ───────── */
 async function renderProxy(url,seq){
+  /* Defensa en profundidad: un .cu jamás debe pasar por aquí. */
+  if(isCuHost(url)){
+    setModeUI('direct');
+    showStatus('Los dominios .cu cargan en modo DIRECTO: los proxies extranjeros no pueden alcanzarlos (geo-bloqueo del origen cubano).','warn');
+    return renderDirect(url,seq);
+  }
   viewport.classList.add('dark-loading');
   centerMsg(true,'Cargando vía proxy…','Buscando el transporte más sano para '+hostOf(url));
   showStatus('Modo PROXY: descargando '+url,'info');
@@ -738,6 +769,29 @@ function errorPage(url,err){
   +'<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'retry\'},\'*\')">Reintentar</button>'
   +'<button onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'direct\'},\'*\')">Cargar en modo Directo</button>'
   +'<button onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'open\'},\'*\')">Abrir en pestaña nueva</button>'
+  +'</div></div></body></html>';
+}
+
+/* Página explicativa para contenido mixto (http dentro de https) */
+function mixedPage(url){
+  const safe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><style>'
+  +'body{font-family:system-ui,-apple-system,sans-serif;background:#0a0e16;color:#e7edf8;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}'
+  +'.c{max-width:600px;padding:34px;text-align:center}'
+  +'h1{font-size:20px;margin:0 0 12px}'
+  +'p{color:#8d99b0;font-size:13.5px;line-height:1.65}'
+  +'code{background:#131c2e;padding:2px 7px;border-radius:6px;font-size:12px;word-break:break-all;color:#9fd3ff}'
+  +'.b{display:flex;gap:10px;justify-content:center;margin-top:24px}'
+  +'button{padding:11px 17px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:#131c2e;color:#e7edf8;font-size:13px;cursor:pointer}'
+  +'button.p{background:linear-gradient(90deg,#4f9cf9,#22d3ee);border:0;color:#06101d;font-weight:700}'
+  +'</style></head><body><div class="c">'
+  +'<h1>Sitio http:// bloqueado por el navegador</h1>'
+  +'<p><code>'+safe(url)+'</code></p>'
+  +'<p>Este sitio usa <b>http://</b> y KALM está servido por <b>https://</b> (GitHub Pages). '
+  +'Los navegadores bloquean enmarcar http dentro de https por seguridad (contenido mixto). '
+  +'Ábrelo en una pestaña nueva, o sirve KALM localmente (doble clic en el archivo).</p>'
+  +'<div class="b">'
+  +'<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'open\'},\'*\')">Abrir en pestaña nueva</button>'
   +'</div></div></body></html>';
 }
 
@@ -1109,7 +1163,9 @@ $('modeBadge').addEventListener('click',function(){
   const next=state.mode==='direct'?'proxy':'direct';
   const h=hostOf(state.current);
   if(next==='proxy'&&isCuHost(state.current)){
-    if(!confirm('«'+h+'» es un dominio .cu: solo responde dentro de la red cubana, así que los proxies extranjeros NO podrán leerlo y fallará.\n\nEl modo DIRECTO es el correcto para los .cu (carga nativa desde tu red).\n\n¿Quieres probar el proxy de todos modos?')) return;
+    /* v4.2: ni siquiera se intenta. Los .cu son geo-bloqueados por todos los proxies. */
+    showStatus('«'+h+'» es un dominio .cu: solo responde desde la red cubana y TODOS los proxies extranjeros reciben geo-bloqueo (por eso los errores 522/429/500). El modo DIRECTO —nativo, desde tu red— es el único posible para .cu y ya está activo.','warn',true);
+    return;
   }
   if(h){ prefs[h]=next; savePrefs(); }
   navigate(state.current,{raw:true,push:false,mode:next});
@@ -1200,6 +1256,7 @@ $('btnProbe').addEventListener('click',async function(){
 
 /* ════════════════ 15. Arranque ════════════════ */
 window.addEventListener('DOMContentLoaded',function(){
+  console.log('[KALM] Prx-KALM v4.2 — política .cu: SIEMPRE modo directo (los proxies extranjeros reciben geo-bloqueo del origen cubano). Ajustes → «Acerca de KALM» confirma la versión desplegada.');
   setButtons();
   navigate(settings.home,{raw:true});
 });
