@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="KALM — navegador dentro del navegador. Sin Service Worker, sin configuración.">
 <title>Prx-KALM</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0e16'/%3E%3Ctext x='16' y='22' font-family='Arial' font-size='17' font-weight='bold' fill='%2322d3ee' text-anchor='middle'%3EK%3C/text%3E%3C/svg%3E">
 <style>
   :root{
     --bg:#0a0e16; --panel:#101726; --panel2:#0c1320; --field:#131c2e;
@@ -164,7 +165,7 @@
 </head>
 <body>
   <header id="toolbar">
-    <div id="brand">KALM <span style="font-size:9px;font-weight:700;letter-spacing:.4px;color:#22d3ee;vertical-align:super">v4.3</span></div>
+    <div id="brand">KALM <span style="font-size:9px;font-weight:700;letter-spacing:.4px;color:#22d3ee;vertical-align:super">v4.5</span></div>
     <button class="tbtn" id="btnBack" title="Atrás (Alt+←)" disabled>
       <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
@@ -297,7 +298,7 @@
 
         <details>
           <summary>Acerca de KALM</summary>
-          <p><b>KALM v4.3</b> es un «navegador dentro del navegador»: carga páginas en un marco interno sin Service Worker. Modo <b>Directo</b>: el sitio se carga nativo en el marco (única vía para los .cu desde Cuba — los proxies extranjeros reciben geo-bloqueo del origen cubano—). <b>Arreglo v4.3:</b> todo host <b>*.uclv.edu.cu</b> se usa por su variante <b>*.uclv.cu</b> — el certificado TLS del clúster solo cubre *.uclv.cu, y con .edu.cu el navegador rechaza la conexión por seguridad (por eso «no conectaba»; la variante .cu abre con TLS válido, mismo contenido y sin contenido mixto desde GitHub Pages). Modo <b>Proxy</b> (solo sitios internacionales): el HTML se descarga, se reescriben las URLs y se muestra aislado (sandbox). Incluye descargas comprimidas en ZIP con numeración automática desde 00001. Si ves «v4.3» aquí (y en el logo), el archivo desplegado está actualizado; si no, aplica Ctrl+F5 o resube el archivo.</p>
+          <p><b>KALM v4.5</b> es un «navegador dentro del navegador»: carga páginas en un marco interno sin Service Worker. Modo <b>Directo</b>: el sitio se carga nativo en el marco (única vía para los .cu — los relays extranjeros reciben geo-bloqueo del origen cubano, re-verificado: 302 → oops, 522/429—). <b>v4.3:</b> los hosts *.uclv.edu.cu se usan por su variante *.uclv.cu (el certificado de entonces no cubría .edu.cu; desde 09/2026 UCLV sirve uno que cubre ambas variantes). <b>v4.4:</b> los sitios que prohíben ser enmarcados (Google, YouTube, Facebook, Instagram…) van solos por proxy (X-Frame-Options del propio sitio). <b>v4.5:</b> si visuales te muestra <b>403</b>, tu petición SÍ llegó al servidor y este rechazó TU red/IP (baneo o rango no permitido): cambia de red (datos móviles/WiFi/red universitaria), reconéctate para renovar tu IP, reintenta varias veces (el clúster reparte entre 3 servidores) o espera 30–60 min; además la barra ya pone https a los *.uclv.cu y el diagnóstico ofrece la variante alternativa .edu.cu. Modo <b>Proxy</b>: el HTML se descarga, se reescriben las URLs y se muestra aislado (sandbox). Descargas ZIP con numeración automática desde 00001. Si ves «v4.5» aquí (y en el logo), el archivo desplegado está actualizado; si no, aplica Ctrl+F5 o resube el archivo.</p>
         </details>
 
         <div class="btnrow">
@@ -358,15 +359,18 @@ if(!Promise.any){
 
 /* ════════════════ 2. Ajustes ════════════════ */
 const DEFAULT_HOME='https://visuales.uclv.cu/';
-const KALM_VERSION='4.3';
-/* ── Ruta canónica UCLV (arreglo definitivo de conexión, v4.3) ──
-   Probado con OpenSSL: el certificado que sirve visuales.uclv.edu.cu es
-   CN=*.uclv.cu (Let's Encrypt) — NO coincide con el host .edu.cu, así que
-   el navegador rechaza https://visuales.uclv.edu.cu SIEMPRE (incluso dentro
-   de Cuba) con error de certificado: era la causa exacta del «no conecta».
-   La variante https://*.uclv.cu (mismo clúster cloud-cluster.uclv.cu, mismo
-   contenido) presenta TLS válido y se puede enmarcar incluso desde un
-   hosting https:// (GitHub Pages) sin bloqueo de contenido mixto. */
+const KALM_VERSION='4.5';
+/* ── Ruta canónica UCLV (v4.3, se mantiene en v4.5) ──
+   Histórico: el certificado de la época era CN=*.uclv.cu y NO cubría el host
+   .edu.cu, así que el navegador rechazaba https://visuales.uclv.edu.cu SIEMPRE
+   (incluso dentro de Cuba) con error de certificado: esa fue la causa exacta
+   del «no conecta». La variante https://*.uclv.cu (mismo clúster
+   cloud-cluster.uclv.cu) presentaba TLS válido y enmarcable desde GitHub Pages.
+   Actualización 10/2026: UCLV renovó el certificado — SAN con *.uclv.cu Y
+   *.uclv.edu.cu — así que hoy ambas variantes cifran bien; se mantiene .cu
+   como canónica por compatibilidad con todo el estado guardado, y v4.5 añade
+   la variante .edu.cu como rescate en el diagnóstico. Ojo: AMBAS variantes
+   geo-bloquean al extranjero con 302 → oops.uclv.edu.cu (re-verificado). */
 function canonUrl(u){
   try{
     const x=new URL(u);
@@ -606,16 +610,26 @@ function normalizeInput(s){
   const host=(s.split(/[\/:?#]/)[0]||'');
   if(/^[\w-]+(\.[\w-]+)+(:\d+)?$/.test(host)){
     if(/\.uclv\.edu\.cu$/i.test(host)) return canonUrl('https://'+s);
+    if(/\.uclv\.cu$/i.test(host)) return canonUrl('https://'+s); /* v4.5: el clúster UCLV tiene TLS válido en .cu — no degradar a http */
     if(/\.cu$/i.test(host)) return 'http://'+s; /* TLS .cu en general roto: http nativo */
     return 'https://'+s;
   }
   return SEARCH_BASE+encodeURIComponent(s);
 }
 function isSearchUrl(u){ return typeof u==='string'&&u.indexOf(SEARCH_BASE)===0; }
+/* Dominios conocidos que envían X-Frame-Options / frame-ancestors y no pueden
+   mostrarse dentro de NINGÚN marco (política del propio sitio, no de KALM).
+   google.com.cu también entra: lo sirve Google, no la red cubana. */
+const UNFRAMABLE=/(^|\.)(google\.[a-z.]+|youtube\.com|youtu\.be|facebook\.com|instagram\.com|whatsapp\.com|x\.com|twitter\.com|netflix\.com|github\.com|reddit\.com|linkedin\.com|tiktok\.com|amazon\.[a-z.]+|gmail\.com|t\.co|goo\.gl)$/i;
 function autoPickMode(url){
   try{
     const u=new URL(url);
-    /* REGLA DEFINITIVA: un .cu SIEMPRE va en modo directo. Los proxies viven fuera de
+    /* 1) Sitios que prohíben ser enmarcados (X-Frame-Options: sameorigin):
+          intentarlos en directo es fracaso seguro — el navegador pintaría SU error
+          dentro del marco y llenaría la consola de cookies rechazadas (caso Google
+          reportado en F12). Van directamente por proxy. */
+    if(UNFRAMABLE.test(u.hostname)) return 'proxy';
+    /* 2) REGLA DEFINITIVA: un .cu SIEMPRE va en modo directo. Los proxies viven fuera de
        Cuba y el origen cubano les da geo-bloqueo (522/429/500 para siempre). Ni una
        sola petición proxy para .cu: cero errores de consola, carga garantizada. */
     if(isCuHost(url)) return 'direct';
@@ -667,7 +681,7 @@ function navigate(input,opts){
   opts=opts||{};
   let url=(typeof input==='string')?(opts.raw?input:normalizeInput(input)):null;
   if(!url){ addr.focus(); return; }
-  url=canonUrl(url); /* v4.3: barrita, historial, marco e inicio pasan por la forma canónica */
+  if(!opts.keepVariant) url=canonUrl(url); /* v4.3 canónica; v4.5: keepVariant permite la variante de rescate .edu.cu */
   let u; try{ u=new URL(url); }catch(e){ showStatus('URL no válida: '+url,'err'); return; }
   url=u.href;
 
@@ -721,6 +735,14 @@ function renderDirect(url,seq){
     if(seq!==state.seq) return;
     finishLoad(seq);
     showStatus('Página cargada en modo directo. Enlaces, formularios y descargas funcionan de forma nativa.','ok');
+    /* v4.5: un 403 del origen SÍ dispara «load» (su página de error es una página
+       normal), así que ningún vigía lo detecta. Se avisa una sola vez por sesión. */
+    if(isCuHost(url)&&!renderDirect.cuTip){
+      renderDirect.cuTip=true;
+      setTimeout(function(){ if(seq===state.seq)
+        showStatus('Tip: si dentro del sitio ves «403», el servidor de UCLV rechazó tu red/IP (no es fallo de KALM): cambia de red, reconéctate para renovar tu IP, reintenta (hay 3 servidores) o espera unos minutos.','info',true);
+      },4000);
+    }
     try{
       const h=f.contentWindow.location.href;
       if(h&&h!==url&&/^https?:/i.test(h)){ addr.value=h; state.current=h; }
@@ -820,7 +842,7 @@ function errorPage(url,err){
     ?'Este dominio es <b>.cu</b>: solo responde desde la red cubana, así que los proxies extranjeros nunca podrán leerlo. Usa el modo <b>Directo</b>, que carga el sitio nativo desde tu red.</p>'
     :'Los proxies CORS públicos suelen estar saturados (error 429) o han cerrado el acceso libre. '
   +'Prueba el modo <b>Directo</b> (botón de la barra o el botón verde): carga el sitio nativo sin proxy, '
-  +'y es la vía recomendada para los sitios de UCLV desde Cuba (KALM v4.3 usa automáticamente la variante *.uclv.cu con TLS válido). Para que el modo Proxy funcione siempre, '
+  +'y es la vía recomendada para los sitios de UCLV desde Cuba (KALM usa automáticamente la variante *.uclv.cu, TLS válido). Para que el modo Proxy funcione siempre, '
   +'despliega tu propio proxy gratis: Ajustes → «Proxy propio en Cloudflare Workers».</p>')
   +'<div class="b">'
   +'<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'retry\'},\'*\')">Reintentar</button>'
@@ -862,6 +884,12 @@ function diagPage(url){
     if(/\.uclv\.edu\.cu$/i.test(x.hostname)){
       const a=canonUrl(url);
       alt='<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'goto\',url:\''+a+'\'},\'*\')">Abrir variante con TLS válido: '+safe(hostOf(a))+'</button>';
+    }else if(/\.uclv\.cu$/i.test(x.hostname)){
+      /* v4.5: la variante .edu.cu es un rescate real (el certificado 2026 la cubre)
+         para cuando el nodo que atiende .cu rechaza la red del usuario. */
+      const a=new URL(url);
+      a.hostname=a.hostname.replace(/\.uclv\.cu$/i,'.uclv.edu.cu'); a.protocol='https:';
+      alt='<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'goto\',url:\''+a.href+'\',keep:1},\'*\')">Probar variante alternativa: '+safe(hostOf(a))+'</button>';
     }
   }catch(e){}
   return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><style>'
@@ -879,7 +907,8 @@ function diagPage(url){
   +'<p style="text-align:center"><code>'+safe(url)+'</code></p>'
   +'<p>Causas posibles, por orden de probabilidad:</p>'
   +'<ul>'
-  +'<li><b>Estás fuera de la red cubana:</b> los dominios de UCLV tienen <b>geo-bloqueo oficial</b> (comprobado: responden 302 → oops.uclv.edu.cu desde el extranjero) y solo sirven contenido dentro de Cuba. Es política del servidor: ninguna herramienta puede evitarlo.</li>'
+  +'<li><b>Estás fuera de la red cubana (o tu conexión sale por el extranjero):</b> UCLV aplica <b>geo-bloqueo oficial</b> — re-verificado hoy: <i>ambas</i> variantes (.cu y .edu.cu) responden 302 → oops.uclv.edu.cu desde fuera; 2 de cada 3 servidores del clúster ni siquiera aceptan conexiones extranjeras; los relays públicos mueren con 522/429. Política del servidor: ninguna herramienta la evita.</li>'
+  +'<li><b>Si dentro del sitio viste «403»:</b> tu petición SÍ llegó al servidor y este <b>rechazó tu red/IP</b> (baneo temporal o rango no permitido). Prueba: cambiar de red (datos móviles ↔ WiFi ↔ red universitaria), reconectarte para renovar la IP, reintentar varias veces (el clúster reparte entre 3 servidores) o esperar 30–60 min. Ni KALM ni ningún proxy puede levantar un 403 del servidor.</li>'
   +'<li><b>El servidor está apagado</b> o tu equipo se quedó sin conexión.</li>'
   +'<li>Si el sitio es <b>http://</b> y esta copia corre en <b>https://</b>, el navegador bloquea el marco por contenido mixto: guarda la copia local de KALM y ábrela con doble clic.</li>'
   +'</ul>'
@@ -1220,7 +1249,7 @@ window.addEventListener('message',function(e){
   else if(d.type==='post'&&d.url){ directPost(d.url,d.fields||[]); }
   else if(d.type==='download'&&d.url){ zipAndSave(d.url); }
   else if(d.type==='ui'){
-    if(d.action==='goto'&&d.url){ navigate(d.url,{raw:true}); }
+    if(d.action==='goto'&&d.url){ navigate(d.url,{raw:true,keepVariant:!!d.keep}); }
     else if(d.action==='savelocal'){
       const selfFetch=(location.protocol==='file:')
         ?Promise.reject(new Error('ya estás en la copia local; para duplicarla usa Ctrl+S'))
@@ -1270,7 +1299,7 @@ $('modeBadge').addEventListener('click',function(){
   const h=hostOf(state.current);
   if(next==='proxy'&&isCuHost(state.current)){
     /* v4.3: ni siquiera se intenta. Los .cu son geo-bloqueados por todos los proxies. */
-    showStatus('«'+h+'» es un dominio .cu: solo responde desde la red cubana y TODOS los proxies extranjeros reciben geo-bloqueo (por eso los errores 522/429/500). El modo DIRECTO —nativo, desde tu red— es el único posible para .cu y ya está activo.','warn',true);
+    showStatus('«'+h+'» es un dominio .cu: los relays extranjeros reciben geo-bloqueo (302 → oops) o 522/429 — re-verificado hoy con 3 relays. DIRECTO —nativo, desde tu red— es la única vía y ya está activo. Si lo que ves dentro es un 403, el servidor rechazó TU red/IP: cambia de red, renueva tu IP o espera.','warn',true);
     return;
   }
   if(h){ prefs[h]=next; savePrefs(); }
@@ -1328,7 +1357,7 @@ $('btnCloseCfg').addEventListener('click',function(){ $('overlay').classList.rem
 $('overlay').addEventListener('click',function(e){ if(e.target.id==='overlay') $('overlay').classList.remove('show'); });
 $('btnSave').addEventListener('click',function(){
   let h=$('inHome').value.trim()||DEFAULT_HOME;
-  if(!/^(https?|ftp):\/\//i.test(h)) h=(/\.cu$/i.test(h)&&!/\.uclv\.edu\.cu$/i.test(h))?'http://'+h:'https://'+h;
+  if(!/^(https?|ftp):\/\//i.test(h)) h=(/\.cu$/i.test(h)&&!/\.uclv\.edu\.cu$/i.test(h)&&!/\.uclv\.cu$/i.test(h))?'http://'+h:'https://'+h; /* v4.5: *.uclv.cu con https (TLS válido) */
   settings.home=canonUrl(h); /* v4.3: el inicio guardado también se normaliza a *.uclv.cu */
   settings.scripts=$('inScripts').checked;
   settings.custom=$('inCustom').value.trim();
@@ -1362,7 +1391,7 @@ $('btnProbe').addEventListener('click',async function(){
 
 /* ════════════════ 15. Arranque ════════════════ */
 window.addEventListener('DOMContentLoaded',function(){
-  console.log('[KALM] Prx-KALM v'+KALM_VERSION+' — política .cu: SIEMPRE modo directo (geo-bloqueo de los proxies extranjeros) · hosts *.uclv.edu.cu → *.uclv.cu automáticamente (TLS válido; el .edu.cu muere con error de certificado). Inicio: '+settings.home);
+  console.log('[KALM] Prx-KALM v'+KALM_VERSION+' — política .cu: SIEMPRE modo directo (relays extranjeros: 302 → oops o 522/429, re-verificado) · *.uclv.edu.cu → *.uclv.cu · *.uclv.cu con https en la barra · un 403 del sitio = el servidor rechazó tu red (cambia de red/IP o espera; el diagnóstico ofrece la variante .edu.cu) · google/youtube/facebook → proxy (X-Frame-Options). Inicio: '+settings.home);
   setButtons();
   showStatus('Prx-KALM v'+KALM_VERSION+' lista. Inicio: '+settings.home,'info');
   navigate(settings.home,{raw:true});
