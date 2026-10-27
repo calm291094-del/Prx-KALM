@@ -22,7 +22,6 @@
     font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Ubuntu,sans-serif;
     display:flex; flex-direction:column; overflow:hidden;
   }
-  /* ---------- Barra de herramientas ---------- */
   #toolbar{
     height:var(--tbar); flex:0 0 auto; display:flex; align-items:center; gap:7px;
     padding:0 12px; background:linear-gradient(180deg,var(--panel),var(--panel2));
@@ -71,14 +70,12 @@
   #modeBadge.direct{color:#a7f3d0; border-color:rgba(52,211,153,.35); background:rgba(52,211,153,.08)}
   #modeBadge.proxy{color:#bfdbfe; border-color:rgba(79,156,249,.4); background:rgba(79,156,249,.1)}
   #modeBadge.proxy .dot{background:var(--accent)}
-  /* ---------- Progreso ---------- */
   #progress{position:relative; height:3px; flex:0 0 auto; background:transparent; z-index:25; overflow:hidden}
   #progressBar{
     height:100%; width:0%; background:var(--grad); border-radius:0 3px 3px 0;
     transition:width .25s ease; opacity:0;
   }
   #progress.on #progressBar{opacity:1}
-  /* ---------- Barra de estado ---------- */
   #status{
     flex:0 0 auto; height:0; overflow:hidden; display:flex; align-items:center; gap:9px;
     padding:0 14px; background:#0d1524; border-bottom:1px solid var(--border);
@@ -95,7 +92,6 @@
     background:transparent; color:var(--muted); font-size:15px; line-height:1;
   }
   #statusClose:hover{background:rgba(255,255,255,.08); color:var(--text)}
-  /* ---------- Ventana interna ---------- */
   #viewport{flex:1 1 auto; position:relative; background:#fff}
   #viewport iframe{position:absolute; inset:0; width:100%; height:100%; border:0; background:#fff}
   #viewport.dark-loading{background:var(--bg)}
@@ -109,7 +105,6 @@
   .spinner{width:34px; height:34px; border-radius:50%; border:3px solid rgba(255,255,255,.12);
     border-top-color:var(--accent); animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  /* ---------- Modal de ajustes ---------- */
   #overlay{
     position:fixed; inset:0; background:rgba(4,8,16,.66); backdrop-filter:blur(6px);
     display:none; align-items:center; justify-content:center; z-index:100; padding:18px;
@@ -165,7 +160,7 @@
 </head>
 <body>
   <header id="toolbar">
-    <div id="brand">KALM <span style="font-size:9px;font-weight:700;letter-spacing:.4px;color:#22d3ee;vertical-align:super">v4.5</span></div>
+    <div id="brand">KALM <span style="font-size:9px;font-weight:700;letter-spacing:.4px;color:#22d3ee;vertical-align:super">v4.6</span></div>
     <button class="tbtn" id="btnBack" title="Atrás (Alt+←)" disabled>
       <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
@@ -224,7 +219,7 @@
       <div class="body">
         <div class="field">
           <label for="inHome">Página de inicio</label>
-          <input type="text" id="inHome" placeholder="https://visuales.uclv.cu/">
+          <input type="text" id="inHome" placeholder="https://example.com/">
         </div>
         <label class="check"><input type="checkbox" id="inScripts"> Cargar JavaScript de terceros en modo Proxy</label>
         <div class="hint">En modo Directo los scripts siempre funcionan de forma nativa. En modo Proxy, si lo desactivas, las páginas cargan más rápido y con menos errores.</div>
@@ -232,9 +227,9 @@
         <div class="split"></div>
 
         <div class="field">
-          <label for="inCustom">Proxy personalizado (opcional — el más fiable si despliegas el tuyo)</label>
+          <label for="inCustom">Proxy personalizado (recomendado — el más fiable si despliegas el tuyo)</label>
           <input type="text" id="inCustom" placeholder="https://mi-proxy.workers.dev/?url=">
-          <div class="hint">Plantilla del proxy. Usa <b>{url}</b> donde va la URL codificada; si no la incluyes, se añade al final codificada. Se prueba antes que los proxies públicos.</div>
+          <div class="hint">Plantilla del proxy. Usa <b>{url}</b> donde va la URL codificada; si no la incluyes, se añade al final codificada. Se prueba antes que los proxies públicos. <b>v4.6:</b> con un proxy propio configurado, los sitios internacionales van automáticamente por proxy (evita el bloqueo por X-Frame-Options).</div>
         </div>
         <div class="field">
           <label for="inCpKey">API key de corsproxy.io (opcional)</label>
@@ -298,7 +293,9 @@
 
         <details>
           <summary>Acerca de KALM</summary>
-          <p><b>KALM v4.5</b> es un «navegador dentro del navegador»: carga páginas en un marco interno sin Service Worker. Modo <b>Directo</b>: el sitio se carga nativo en el marco (única vía para los .cu — los relays extranjeros reciben geo-bloqueo del origen cubano, re-verificado: 302 → oops, 522/429—). <b>v4.3:</b> los hosts *.uclv.edu.cu se usan por su variante *.uclv.cu (el certificado de entonces no cubría .edu.cu; desde 09/2026 UCLV sirve uno que cubre ambas variantes). <b>v4.4:</b> los sitios que prohíben ser enmarcados (Google, YouTube, Facebook, Instagram…) van solos por proxy (X-Frame-Options del propio sitio). <b>v4.5:</b> si visuales te muestra <b>403</b>, tu petición SÍ llegó al servidor y este rechazó TU red/IP (baneo o rango no permitido): cambia de red (datos móviles/WiFi/red universitaria), reconéctate para renovar tu IP, reintenta varias veces (el clúster reparte entre 3 servidores) o espera 30–60 min; además la barra ya pone https a los *.uclv.cu y el diagnóstico ofrece la variante alternativa .edu.cu. Modo <b>Proxy</b>: el HTML se descarga, se reescriben las URLs y se muestra aislado (sandbox). Descargas ZIP con numeración automática desde 00001. Si ves «v4.5» aquí (y en el logo), el archivo desplegado está actualizado; si no, aplica Ctrl+F5 o resube el archivo.</p>
+          <p><b>KALM v4.6</b> es un «navegador dentro del navegador» sin Service Worker. <b>v4.6 cambia la estrategia de proxy:</b> el HTML se descarga por el proxy (tu Worker propio o, en su defecto, relays públicos) y se reescribe con un <code>&lt;base href&gt;</code> apuntando al sitio original; <b>las imágenes, CSS, JS y fuentes se cargan directamente del origen</b>, sin pasar por proxies intermedios. Esto elimina los fallos en cascada cuando un relay público devolvía 429 o HTML de error como si fuera una imagen.</p>
+          <p><b>Modo Directo:</b> el sitio carga nativo en el marco. Es la única vía para los <code>.cu</code> (los relays extranjeros reciben geo-bloqueo del origen cubano). <b>Modo Proxy:</b> el HTML se descarga por el proxy y se muestra aislado con <code>sandbox</code>. Con un Worker propio configurado, los sitios internacionales van automáticamente por proxy porque la mayoría envían <code>X-Frame-Options</code> y no pueden enmarcarse de forma nativa.</p>
+          <p><b>Límites conocidos del enfoque <code>srcdoc</code>:</b> el JS del sitio que depende de <code>location.href</code> verá <code>about:srcdoc</code>, no la URL real. Los sitios <code>.cu</code> en <code>http://</code> no se pueden enmarcar desde un KALM servido por <code>https://</code> (contenido mixto): usa el botón «Guardar KALM en tu equipo» para abrirlo en local. El 403 de UCLV es rechazo del servidor a tu red/IP: cambia de red, renueva IP, reintenta o espera.</p>
         </details>
 
         <div class="btnrow">
@@ -308,6 +305,7 @@
       </div>
     </div>
   </div>
+
 <script>
 'use strict';
 
@@ -315,7 +313,7 @@
 const $=id=>document.getElementById(id);
 const viewport=$('viewport'), addr=$('addr'), statusEl=$('status'), statusText=$('statusText'),
       progressEl=$('progress'), progressBar=$('progressBar');
-const MAX_DL=180*1024*1024; // 180 MB máximo por descarga
+const MAX_DL=180*1024*1024;
 
 let statusTimer=null;
 function showStatus(text, kind, sticky){
@@ -358,19 +356,9 @@ if(!Promise.any){
 }
 
 /* ════════════════ 2. Ajustes ════════════════ */
-const DEFAULT_HOME='https://visuales.uclv.cu/';
-const KALM_VERSION='4.5';
-/* ── Ruta canónica UCLV (v4.3, se mantiene en v4.5) ──
-   Histórico: el certificado de la época era CN=*.uclv.cu y NO cubría el host
-   .edu.cu, así que el navegador rechazaba https://visuales.uclv.edu.cu SIEMPRE
-   (incluso dentro de Cuba) con error de certificado: esa fue la causa exacta
-   del «no conecta». La variante https://*.uclv.cu (mismo clúster
-   cloud-cluster.uclv.cu) presentaba TLS válido y enmarcable desde GitHub Pages.
-   Actualización 10/2026: UCLV renovó el certificado — SAN con *.uclv.cu Y
-   *.uclv.edu.cu — así que hoy ambas variantes cifran bien; se mantiene .cu
-   como canónica por compatibilidad con todo el estado guardado, y v4.5 añade
-   la variante .edu.cu como rescate en el diagnóstico. Ojo: AMBAS variantes
-   geo-bloquean al extranjero con 302 → oops.uclv.edu.cu (re-verificado). */
+const DEFAULT_HOME='https://example.com/';   // v4.6: home neutral; el usuario configura la suya
+const KALM_VERSION='4.6';
+
 function canonUrl(u){
   try{
     const x=new URL(u);
@@ -398,12 +386,6 @@ let prefs={};
 try{ prefs=JSON.parse(lsGet(K.prefs,'{}'))||{}; }catch(e){ prefs={}; }
 function savePrefs(){ lsSet(K.prefs,JSON.stringify(prefs)); }
 
-/* MIGRACIÓN v4.3 al arrancar:
-   a) Ningún .cu conserva preferencia 'proxy' (los proxies extranjeros reciben
-      geo-bloqueo del origen cubano: fuente de los 522/429/500 del historial).
-   b) Las claves *.uclv.edu.cu de preferencias se renombran a *.uclv.cu.
-   c) La página de inicio guardada que apunte a *.uclv.edu.cu se corrige a su
-      variante *.uclv.cu (TLS válido); el .edu.cu muere con error de certificado. */
 (function(){
   let ch=false;
   Object.keys(prefs).forEach(function(h){
@@ -430,7 +412,7 @@ function hOf(id){ if(!health[id]) health[id]={ok:0,fail:0,cool:0}; return health
 function markOk(id){ const h=hOf(id); h.ok++; h.cool=0; queueSaveHealth(); }
 function markFail(id,is429){
   const h=hOf(id); h.fail++;
-  h.cool=Date.now()+(is429?120000:45000); // 429 → castigo largo; otros → corto
+  h.cool=Date.now()+(is429?120000:45000);
   queueSaveHealth();
 }
 function queueSaveHealth(){ clearTimeout(healthSaveT);
@@ -540,7 +522,7 @@ async function tryInitWisp(){
       showStatus('Túnel WISP activo: '+settings.wispUrl,'ok');
       return true;
     }
-  }catch(e){ /* WISP es opcional: si falla, no pasa nada */ }
+  }catch(e){}
   return false;
 }
 
@@ -552,7 +534,6 @@ async function fetchPipeline(url,opts){
   const forBin=!!opts.binary;
   let lastErr=null;
 
-  // WISP primero, si está activo
   await tryInitWisp();
   if(state.wispReady&&window.libcurl&&typeof window.libcurl.fetch==='function'){
     try{
@@ -581,7 +562,7 @@ async function fetchPipeline(url,opts){
       const win=await Promise.any(attempts);
       markOk(win.p.id);
       return {data:win.data,via:win.p.name,proxy:win.p};
-    }catch(e){ /* siguiente oleada */ }
+    }catch(e){}
   }
   throw lastErr||new Error('Todos los proxies fallaron');
 }
@@ -610,33 +591,29 @@ function normalizeInput(s){
   const host=(s.split(/[\/:?#]/)[0]||'');
   if(/^[\w-]+(\.[\w-]+)+(:\d+)?$/.test(host)){
     if(/\.uclv\.edu\.cu$/i.test(host)) return canonUrl('https://'+s);
-    if(/\.uclv\.cu$/i.test(host)) return canonUrl('https://'+s); /* v4.5: el clúster UCLV tiene TLS válido en .cu — no degradar a http */
-    if(/\.cu$/i.test(host)) return 'http://'+s; /* TLS .cu en general roto: http nativo */
+    if(/\.uclv\.cu$/i.test(host)) return canonUrl('https://'+s);
+    if(/\.cu$/i.test(host)) return 'http://'+s;
     return 'https://'+s;
   }
   return SEARCH_BASE+encodeURIComponent(s);
 }
 function isSearchUrl(u){ return typeof u==='string'&&u.indexOf(SEARCH_BASE)===0; }
-/* Dominios conocidos que envían X-Frame-Options / frame-ancestors y no pueden
-   mostrarse dentro de NINGÚN marco (política del propio sitio, no de KALM).
-   google.com.cu también entra: lo sirve Google, no la red cubana. */
+
 const UNFRAMABLE=/(^|\.)(google\.[a-z.]+|youtube\.com|youtu\.be|facebook\.com|instagram\.com|whatsapp\.com|x\.com|twitter\.com|netflix\.com|github\.com|reddit\.com|linkedin\.com|tiktok\.com|amazon\.[a-z.]+|gmail\.com|t\.co|goo\.gl)$/i;
+
+/* v4.6: con un proxy propio configurado, los sitios internacionales van por proxy
+   por defecto. Motivo: la mayoría envían X-Frame-Options y en modo directo se
+   quedan en blanco sin que podamos detectarlo desde JS. */
 function autoPickMode(url){
   try{
     const u=new URL(url);
-    /* 1) Sitios que prohíben ser enmarcados (X-Frame-Options: sameorigin):
-          intentarlos en directo es fracaso seguro — el navegador pintaría SU error
-          dentro del marco y llenaría la consola de cookies rechazadas (caso Google
-          reportado en F12). Van directamente por proxy. */
     if(UNFRAMABLE.test(u.hostname)) return 'proxy';
-    /* 2) REGLA DEFINITIVA: un .cu SIEMPRE va en modo directo. Los proxies viven fuera de
-       Cuba y el origen cubano les da geo-bloqueo (522/429/500 para siempre). Ni una
-       sola petición proxy para .cu: cero errores de consola, carga garantizada. */
     if(isCuHost(url)) return 'direct';
-    if(location.protocol==='https:'&&u.protocol==='http:') return 'proxy'; // contenido mixto
-    if(isSearchUrl(url)) return 'proxy';
     const pref=prefs[u.hostname];
     if(pref==='proxy'||pref==='direct') return pref;
+    if(isSearchUrl(url)) return 'proxy';
+    if(location.protocol==='https:'&&u.protocol==='http:') return 'proxy';
+    if(settings.custom) return 'proxy';        // ← v4.6
   }catch(e){}
   return 'direct';
 }
@@ -674,14 +651,14 @@ function finishLoad(seq){
 function maybeFirstHint(){
   if(lsGet(K.hint,'')==='1') return;
   lsSet(K.hint,'1');
-  showStatus('Modo DIRECTO: el sitio carga nativo, sin intermediarios. La barra no sigue la navegación interna del marco; si una página no carga o se ve en blanco, pulsa el botón DIRECTO/PROXY.','info',true);
+  showStatus('Modo DIRECTO: el sitio carga nativo. Si una página queda en blanco, es casi seguro que prohíbe ser enmarcada (X-Frame-Options): pulsa el botón DIRECTO/PROXY para cambiarla, o configura un proxy propio en Ajustes.','info',true);
 }
 
 function navigate(input,opts){
   opts=opts||{};
   let url=(typeof input==='string')?(opts.raw?input:normalizeInput(input)):null;
   if(!url){ addr.focus(); return; }
-  if(!opts.keepVariant) url=canonUrl(url); /* v4.3 canónica; v4.5: keepVariant permite la variante de rescate .edu.cu */
+  if(!opts.keepVariant) url=canonUrl(url);
   let u; try{ u=new URL(url); }catch(e){ showStatus('URL no válida: '+url,'err'); return; }
   url=u.href;
 
@@ -689,15 +666,14 @@ function navigate(input,opts){
   state.current=url; state.loading=true;
   addr.value=url;
   const mode=opts.mode||autoPickMode(url);
-  /* Contenido mixto: una página http:// no puede enmarcarse dentro de un sitio https://
-     (el navegador lo bloquea). Explicarlo en vez de mostrar un marco roto. */
+
   if(mode==='direct'&&location.protocol==='https:'&&u.protocol==='http:'){
     state.current=url; addr.value=url; state.loading=false;
     setModeUI('direct');
     if(opts.push!==false) pushHistory(url);
     document.title='Prx-KALM — '+(u.hostname||'página');
     swapFrame(mixedPage(url));
-    showStatus('Este sitio usa http:// y KALM está servido por https://: el navegador bloquea enmarcarlo. Usa el botón «Abrir en pestaña nueva» (↗) para visitarlo.','warn',true);
+    showStatus('Este sitio usa http:// y KALM está servido por https://: el navegador bloquea enmarcarlo. Usa «Abrir en pestaña nueva» (↗) o guarda KALM en local.','warn',true);
     return;
   }
   setModeUI(mode);
@@ -710,7 +686,7 @@ function navigate(input,opts){
   else renderProxy(url,seq);
 }
 
-/* ───────── Modo DIRECTO: iframe nativo sin sandbox ───────── */
+/* ───────── Modo DIRECTO ───────── */
 function renderDirect(url,seq){
   viewport.classList.add('dark-loading');
   centerMsg(true,'Conectando…',url);
@@ -724,10 +700,6 @@ function renderDirect(url,seq){
   f.referrerPolicy='strict-origin-when-cross-origin';
   let done=false;
   f.addEventListener('load',()=>{
-    /* El marco dispara un primer «load» por su documento about:blank inicial
-       (inmediato, aunque el sitio real no haya respondido). Si se toma por
-       bueno, la app anuncia «cargada» con el marco vacío y el vigía muere.
-       Se ignora ese evento y sólo se acepta la carga real. */
     let initialBlank=false;
     try{ initialBlank=(f.contentWindow.location.href==='about:blank'); }catch(e){ initialBlank=false; }
     if(initialBlank) return;
@@ -735,25 +707,20 @@ function renderDirect(url,seq){
     if(seq!==state.seq) return;
     finishLoad(seq);
     showStatus('Página cargada en modo directo. Enlaces, formularios y descargas funcionan de forma nativa.','ok');
-    /* v4.5: un 403 del origen SÍ dispara «load» (su página de error es una página
-       normal), así que ningún vigía lo detecta. Se avisa una sola vez por sesión. */
     if(isCuHost(url)&&!renderDirect.cuTip){
       renderDirect.cuTip=true;
       setTimeout(function(){ if(seq===state.seq)
-        showStatus('Tip: si dentro del sitio ves «403», el servidor de UCLV rechazó tu red/IP (no es fallo de KALM): cambia de red, reconéctate para renovar tu IP, reintenta (hay 3 servidores) o espera unos minutos.','info',true);
+        showStatus('Tip: si dentro del sitio ves «403», el servidor de UCLV rechazó tu red/IP (no es fallo de KALM): cambia de red, reconéctate, reintenta o espera.','info',true);
       },4000);
     }
     try{
       const h=f.contentWindow.location.href;
       if(h&&h!==url&&/^https?:/i.test(h)){ addr.value=h; state.current=h; }
-    }catch(e){ /* cross-origin: no se puede leer; es lo normal */ }
+    }catch(e){}
     maybeFirstHint();
   });
   viewport.appendChild(f);
   f.src=url;
-  /* Vigía v4.3: si en 25 s el marco no dispara «load», el origen no alcanzó al
-     navegador (sin internet, servidor apagado o —fuera de Cuba— geo-bloqueo
-     oficial de UCLV). Se muestra un diagnóstico honesto, nunca un marco mudo. */
   setTimeout(function(){
     if(done||seq!==state.seq) return;
     finishLoad(seq);
@@ -762,9 +729,8 @@ function renderDirect(url,seq){
   },25000);
 }
 
-/* ───────── Modo PROXY: descargar → reescribir → srcdoc aislado ───────── */
+/* ───────── Modo PROXY ───────── */
 async function renderProxy(url,seq){
-  /* Defensa en profundidad: un .cu jamás debe pasar por aquí. */
   if(isCuHost(url)){
     setModeUI('direct');
     showStatus('Los dominios .cu cargan en modo DIRECTO: los proxies extranjeros no pueden alcanzarlos (geo-bloqueo del origen cubano).','warn');
@@ -788,12 +754,12 @@ async function renderProxy(url,seq){
       setModeUI('direct');
       return renderDirect(url,seq);
     }
-    centerMsg(true,'Reescribiendo recursos…',hostOf(url));
-    const html=await rewriteDoc(doc,url,seq);
+    centerMsg(true,'Reescribiendo HTML…',hostOf(url));
+    const html=rewriteDoc(doc,url);   // v4.6: sync ahora
     if(seq!==state.seq) return;
     finishLoad(seq);
     swapFrame(html);
-    showStatus('Cargado vía proxy ('+r.via+'). La barra muestra siempre la URL real.','ok');
+    showStatus('Cargado vía proxy ('+r.via+'). Assets directos del origen; HTML reescrito.','ok');
     if(state.afterLoad){
       const t=state.afterLoad; state.afterLoad=null;
       setTimeout(()=>{ if(seq===state.seq) navigate(t,{raw:true}); },60);
@@ -803,11 +769,9 @@ async function renderProxy(url,seq){
     if(seq!==state.seq) return;
     finishLoad(seq);
     if(isCuHost(url)){
-      // Los .cu solo responden desde la red cubana: los proxies extranjeros no pueden
-      // llegar al origen. Volver a Directo automáticamente para no repetir el fracaso.
       try{ prefs[hostOf(url)]='direct'; savePrefs(); }catch(_e){}
       setModeUI('direct');
-      showStatus('Los dominios .cu no son accesibles desde servidores extranjeros (geo-bloqueo): ningún proxy puede leerlos. Volviendo al modo DIRECTO, que carga el sitio nativo desde tu red.','warn',true);
+      showStatus('Los dominios .cu no son accesibles desde servidores extranjeros: volviendo a DIRECTO.','warn',true);
       navigate(url,{raw:true,push:false,mode:'direct'});
       return;
     }
@@ -839,11 +803,9 @@ function errorPage(url,err){
   +'<p><code>'+safe(url)+'</code></p>'
   +'<p>Motivo: <b>'+safe(errMsg(err))+'</b>.<br>'
   +(isCuHost(url)
-    ?'Este dominio es <b>.cu</b>: solo responde desde la red cubana, así que los proxies extranjeros nunca podrán leerlo. Usa el modo <b>Directo</b>, que carga el sitio nativo desde tu red.</p>'
-    :'Los proxies CORS públicos suelen estar saturados (error 429) o han cerrado el acceso libre. '
-  +'Prueba el modo <b>Directo</b> (botón de la barra o el botón verde): carga el sitio nativo sin proxy, '
-  +'y es la vía recomendada para los sitios de UCLV desde Cuba (KALM usa automáticamente la variante *.uclv.cu, TLS válido). Para que el modo Proxy funcione siempre, '
-  +'despliega tu propio proxy gratis: Ajustes → «Proxy propio en Cloudflare Workers».</p>')
+    ?'Este dominio es <b>.cu</b>: solo responde desde la red cubana. Usa el modo <b>Directo</b>.'
+    :'Los proxies CORS públicos suelen estar saturados (429) o cerrados. '
+  +'Prueba el modo <b>Directo</b>, o mejor aún, despliega tu propio proxy gratis: Ajustes → «Proxy propio en Cloudflare Workers».</p>')
   +'<div class="b">'
   +'<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'retry\'},\'*\')">Reintentar</button>'
   +'<button onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'direct\'},\'*\')">Cargar en modo Directo</button>'
@@ -851,7 +813,6 @@ function errorPage(url,err){
   +'</div></div></body></html>';
 }
 
-/* Página explicativa para contenido mixto (http dentro de https) */
 function mixedPage(url){
   const safe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><style>'
@@ -860,22 +821,19 @@ function mixedPage(url){
   +'h1{font-size:20px;margin:0 0 12px}'
   +'p{color:#8d99b0;font-size:13.5px;line-height:1.65}'
   +'code{background:#131c2e;padding:2px 7px;border-radius:6px;font-size:12px;word-break:break-all;color:#9fd3ff}'
-  +'.b{display:flex;gap:10px;justify-content:center;margin-top:24px}'
+  +'.b{display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap}'
   +'button{padding:11px 17px;border-radius:10px;border:1px solid rgba(255,255,255,.16);background:#131c2e;color:#e7edf8;font-size:13px;cursor:pointer}'
   +'button.p{background:linear-gradient(90deg,#4f9cf9,#22d3ee);border:0;color:#06101d;font-weight:700}'
   +'</style></head><body><div class="c">'
   +'<h1>Sitio http:// bloqueado por el navegador</h1>'
   +'<p><code>'+safe(url)+'</code></p>'
-  +'<p>Este sitio usa <b>http://</b> y KALM está servido por <b>https://</b> (GitHub Pages). '
-  +'Los navegadores bloquean enmarcar http dentro de https por seguridad (contenido mixto). '
-  +'Ábrelo en una pestaña nueva, o sirve KALM localmente (doble clic en el archivo).</p>'
+  +'<p>Este sitio usa <b>http://</b> y KALM está servido por <b>https://</b>. Los navegadores bloquean el contenido mixto. Ábrelo en pestaña nueva, o guarda KALM en local para que corra desde <code>file://</code> y no aplique esta restricción.</p>'
   +'<div class="b">'
   +'<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'open\'},\'*\')">Abrir en pestaña nueva</button>'
-  +'<button onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'savelocal\'},\'*\')">Guardar KALM en tu equipo (funciona con doble clic)</button>'
+  +'<button onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'savelocal\'},\'*\')">Guardar KALM en tu equipo</button>'
   +'</div></div></body></html>';
 }
 
-/* Diagnóstico v4.3: carga directa sin respuesta tras el vigía de 25 s */
 function diagPage(url){
   const safe=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   let alt='';
@@ -885,8 +843,6 @@ function diagPage(url){
       const a=canonUrl(url);
       alt='<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'goto\',url:\''+a+'\'},\'*\')">Abrir variante con TLS válido: '+safe(hostOf(a))+'</button>';
     }else if(/\.uclv\.cu$/i.test(x.hostname)){
-      /* v4.5: la variante .edu.cu es un rescate real (el certificado 2026 la cubre)
-         para cuando el nodo que atiende .cu rechaza la red del usuario. */
       const a=new URL(url);
       a.hostname=a.hostname.replace(/\.uclv\.cu$/i,'.uclv.edu.cu'); a.protocol='https:';
       alt='<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'goto\',url:\''+a.href+'\',keep:1},\'*\')">Probar variante alternativa: '+safe(hostOf(a))+'</button>';
@@ -907,10 +863,11 @@ function diagPage(url){
   +'<p style="text-align:center"><code>'+safe(url)+'</code></p>'
   +'<p>Causas posibles, por orden de probabilidad:</p>'
   +'<ul>'
-  +'<li><b>Estás fuera de la red cubana (o tu conexión sale por el extranjero):</b> UCLV aplica <b>geo-bloqueo oficial</b> — re-verificado hoy: <i>ambas</i> variantes (.cu y .edu.cu) responden 302 → oops.uclv.edu.cu desde fuera; 2 de cada 3 servidores del clúster ni siquiera aceptan conexiones extranjeras; los relays públicos mueren con 522/429. Política del servidor: ninguna herramienta la evita.</li>'
-  +'<li><b>Si dentro del sitio viste «403»:</b> tu petición SÍ llegó al servidor y este <b>rechazó tu red/IP</b> (baneo temporal o rango no permitido). Prueba: cambiar de red (datos móviles ↔ WiFi ↔ red universitaria), reconectarte para renovar la IP, reintentar varias veces (el clúster reparte entre 3 servidores) o esperar 30–60 min. Ni KALM ni ningún proxy puede levantar un 403 del servidor.</li>'
+  +'<li><b>El sitio prohíbe ser enmarcado (X-Frame-Options):</b> la página carga en blanco en modo Directo. Cambia a modo Proxy.</li>'
+  +'<li><b>Estás fuera de la red cubana (o tu conexión sale por el extranjero):</b> UCLV aplica geo-bloqueo oficial a las dos variantes (.cu y .edu.cu).</li>'
+  +'<li><b>Si dentro del sitio viste «403»:</b> tu petición SÍ llegó y el servidor rechazó tu red/IP. Cambia de red, renueva IP, reintenta o espera 30–60 min.</li>'
   +'<li><b>El servidor está apagado</b> o tu equipo se quedó sin conexión.</li>'
-  +'<li>Si el sitio es <b>http://</b> y esta copia corre en <b>https://</b>, el navegador bloquea el marco por contenido mixto: guarda la copia local de KALM y ábrela con doble clic.</li>'
+  +'<li>Si el sitio es <b>http://</b> y esta copia corre en <b>https://</b>, guarda KALM en local y ábrelo con doble clic.</li>'
   +'</ul>'
   +'<div class="b">'
   +'<button class="p" onclick="parent.postMessage({source:\'kalm-child\',type:\'ui\',action:\'retry\'},\'*\')">Reintentar</button>'
@@ -920,7 +877,6 @@ function diagPage(url){
   +'</div></div></body></html>';
 }
 
-/* POST real hacia el marco (formularios en modo proxy) */
 function directPost(url,fields){
   const seq=++state.seq;
   clearInterval(state.tick);
@@ -947,7 +903,7 @@ function directPost(url,fields){
   showStatus('Formulario enviado como POST nativo dentro del marco.','info');
 }
 
-/* ════════════════ 9. Reescritura de HTML/CSS ════════════════ */
+/* ════════════════ 9. Reescritura de HTML (v4.6, mínima) ════════════════ */
 const DL_EXT=/\.(7z|aac|apk|avi|bmp|csv|deb|dmg|doc|docx|epub|exe|flv|gif|gz|ico|iso|img|jpeg|jpg|m4a|m4v|mkv|mov|mp3|mp4|msi|odb|odp|ods|odt|ogg|pdf|pkg|png|ppt|pptx|psd|rar|rpm|rtf|svg|sql|tar|tif|tiff|torrent|ts|ttf|txt|wav|webm|webp|wmv|xls|xlsx|xml|zip|jar|cab|bin)(?:[?#]|$)/i;
 
 function absUrl(u,base){
@@ -955,34 +911,18 @@ function absUrl(u,base){
     return (x.protocol==='http:'||x.protocol==='https:')?x.href:null;
   }catch(e){ return null; }
 }
-function makeAssetProxer(){
-  const list=orderedProxies(false).filter(p=>hOf(p.id).cool<=Date.now());
-  const use=list.slice(0,3);
-  let i=0;
-  return function asset(u){
-    if(!use.length) return u;                    // sin proxies sanos → recurso directo
-    return use[(i++)%use.length].build(u);       // rotación entre los 3 mejores
-  };
-}
-function rewriteCssText(css,base,asset){
-  return String(css)
-    .replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi,function(m,q,u){
-      if(/^(data:|blob:|about:)/i.test(u)) return m;
-      const a=absUrl(u,base);
-      return a?('url("'+asset(a)+'")'):m;
-    })
-    .replace(/@import\s+(['"])([^'"]+)\1/gi,function(m,q,u){
-      const a=absUrl(u,base);
-      return a?('@import "'+asset(a)+'"'):m;
-    });
-}
 
-async function rewriteDoc(doc,baseUrl,seq){
-  const asset=makeAssetProxer();
+/* v4.6: reescritura mínima del HTML. Ya no se proxean imágenes, CSS ni JS.
+   En su lugar se inyecta un <base href="…"> para que las URLs relativas
+   resuelvan contra el sitio original y los assets carguen nativamente.
+   Esto elimina los fallos en cascada cuando un relay devolvía 429 o HTML
+   de error en lugar del recurso, y hace que los sitios se vean como deben. */
+function rewriteDoc(doc,baseUrl){
   const head=doc.querySelector('head')||doc.documentElement;
 
+  // 1) Quitar bases previas, CSP, meta-refresh, integrity, nonce, crossorigin
   doc.querySelectorAll('base').forEach(n=>n.remove());
-  doc.querySelectorAll('meta').forEach(n=>{
+  doc.querySelectorAll('meta[http-equiv]').forEach(n=>{
     const he=(n.getAttribute('http-equiv')||'').toLowerCase();
     if(he==='content-security-policy'){ n.remove(); return; }
     if(he==='refresh'){
@@ -996,7 +936,13 @@ async function rewriteDoc(doc,baseUrl,seq){
   doc.querySelectorAll('[nonce]').forEach(n=>n.removeAttribute('nonce'));
   doc.querySelectorAll('[crossorigin]').forEach(n=>n.removeAttribute('crossorigin'));
 
-  // Enlaces
+  // 2) <base> para resolver relativas contra el origen
+  const base=doc.createElement('base');
+  try{ base.setAttribute('href', new URL('.', baseUrl).href); }
+  catch(e){ base.setAttribute('href', baseUrl); }
+  head.insertBefore(base, head.firstChild);
+
+  // 3) Enlaces: interceptar
   doc.querySelectorAll('a[href]').forEach(a=>{
     const href=a.getAttribute('href')||'';
     if(/^\s*#/i.test(href)) return;
@@ -1008,76 +954,12 @@ async function rewriteDoc(doc,baseUrl,seq){
     if(DL_EXT.test(abs)) a.setAttribute('data-kalm-dl','1');
   });
 
-  // Imágenes y medios
-  doc.querySelectorAll('img,video,audio,embed,object,picture source,video source,audio source').forEach(el=>{
-    ['src','poster'].forEach(at=>{
-      const v=el.getAttribute?el.getAttribute(at):null;
-      if(!v||/^\s*(data|blob):/i.test(v)) return;
-      const a=absUrl(v,baseUrl);
-      if(a){ el.setAttribute(at,asset(a)); el.setAttribute('data-kalm-fb-'+at,a); }
-    });
-    const ss=el.getAttribute?el.getAttribute('srcset'):null;
-    if(ss){
-      const out=ss.split(',').map(function(part){
-        const t=part.trim().split(/\s+/);
-        if(!t[0]) return '';
-        const a=absUrl(t[0],baseUrl);
-        return a?(asset(a)+(t[1]?' '+t[1]:'')):part.trim();
-      }).filter(Boolean).join(', ');
-      if(out) el.setAttribute('srcset',out);
-    }
-    const ds=el.getAttribute?el.getAttribute('data-src'):null;
-    if(ds){ const a=absUrl(ds,baseUrl); if(a) el.setAttribute('data-src',asset(a)); }
-  });
-
-  // Marcos anidados
-  doc.querySelectorAll('iframe[src],frame[src]').forEach(n=>{
-    const a=absUrl(n.getAttribute('src'),baseUrl);
-    if(a) n.setAttribute('src',asset(a));
-  });
-
-  // Hojas de estilo: descargarlas, reescribirlas e incrustarlas (respaldo: link vía proxy)
-  const links=Array.from(doc.querySelectorAll('link[rel~="stylesheet"][href]'));
-  await Promise.all(links.slice(0,8).map(async L=>{
-    const a=absUrl(L.getAttribute('href'),baseUrl);
-    if(!a) return;
-    if(seq!==state.seq) return;
-    try{
-      const r=await fetchPipeline(a,{binary:false,timeout:12000,maxWaves:1});
-      const st=doc.createElement('style');
-      st.setAttribute('data-kalm-css',a);
-      st.textContent=rewriteCssText(String(r.data),a,asset);
-      L.replaceWith(st);
-    }catch(e){
-      L.setAttribute('href',asset(a));
-      L.setAttribute('data-kalm-fb-href',a);
-    }
-  }));
-  links.slice(8).forEach(L=>{
-    const a=absUrl(L.getAttribute('href'),baseUrl);
-    if(a){ L.setAttribute('href',asset(a)); L.setAttribute('data-kalm-fb-href',a); }
-  });
-
-  // Estilos en línea
-  doc.querySelectorAll('style').forEach(s=>{
-    if(s.textContent) s.textContent=rewriteCssText(s.textContent,baseUrl,asset);
-  });
-  doc.querySelectorAll('[style]').forEach(el=>{
-    const v=el.getAttribute('style');
-    if(v&&v.indexOf('url(')>=0) el.setAttribute('style',rewriteCssText(v,baseUrl,asset));
-  });
-
-  // Scripts
-  if(settings.scripts){
-    doc.querySelectorAll('script[src]').forEach(s=>{
-      const a=absUrl(s.getAttribute('src')||'',baseUrl);
-      if(a){ s.setAttribute('src',asset(a)); s.setAttribute('data-kalm-fb-src',a); }
-    });
-  }else{
+  // 4) Scripts externos: si el usuario los desactivó, quitarlos
+  if(!settings.scripts){
     doc.querySelectorAll('script[src]').forEach(s=>s.remove());
   }
 
-  // Formularios
+  // 5) Formularios
   doc.querySelectorAll('form').forEach(f=>{
     const raw=f.getAttribute('action');
     const action=(raw&&raw!=='#')?(absUrl(raw,baseUrl)||baseUrl):baseUrl;
@@ -1088,10 +970,7 @@ async function rewriteDoc(doc,baseUrl,seq){
     f.setAttribute('data-kalm-method',m==='post'?'post':'get');
   });
 
-  // Inyectar estilo de ayuda + interceptor
-  const st=doc.createElement('style');
-  st.textContent='[data-kalm-url]{cursor:pointer}';
-  head.appendChild(st);
+  // 6) Inyectar interceptor
   const sc=doc.createElement('script');
   sc.textContent='('+childBoot.toString()+')();';
   head.appendChild(sc);
@@ -1104,7 +983,7 @@ function childBoot(){
   if(window.__kalmChild) return;
   window.__kalmChild=true;
 
-  // shim de localStorage (el sandbox tiene origen opaco)
+  // shim de localStorage (sandbox sin allow-same-origin → origen opaco)
   try{ window.localStorage.getItem('kalm'); }catch(e){
     var mem={};
     try{
@@ -1150,17 +1029,6 @@ function childBoot(){
     var qs=fields.map(function(kv){ return encodeURIComponent(kv[0])+'='+encodeURIComponent(kv[1]); }).join('&');
     send({type:'navigate',url:action+(action.indexOf('?')>=0?'&':'?')+qs});
   },true);
-
-  // respaldo: si un recurso vía proxy falla, prueba la URL original directa
-  document.addEventListener('error',function(ev){
-    var el=ev.target;
-    if(!el||!el.getAttribute||el.__kalmFb) return;
-    for(var i=0;i<3;i++){
-      var at=['src','href'][i];
-      var fb=el.getAttribute('data-kalm-fb-'+at);
-      if(fb){ el.__kalmFb=1; el.setAttribute(at,fb); return; }
-    }
-  },true);
 }
 </script>
 <script>
@@ -1198,9 +1066,7 @@ function saveBlob(name,blob){
 async function zipAndSave(url){
   if(!url){ showStatus('No hay ninguna página que guardar.','warn'); return; }
   if(isCuHost(url)){
-    // Leer un .cu requiere llegar al origen cubano: ni el navegador (CORS) ni los proxies
-    // extranjeros (geo-bloqueo) pueden. En directo, las descargas nativas del sitio funcionan.
-    showStatus('Los dominios .cu no permiten la lectura externa (CORS + geo-bloqueo): el empaquetado ZIP solo está disponible para sitios internacionales. En modo Directo, los enlaces de descarga del sitio funcionan de forma nativa sin ZIP.','warn',true);
+    showStatus('Los dominios .cu no permiten la lectura externa (CORS + geo-bloqueo): el empaquetado ZIP solo está disponible para sitios internacionales.','warn',true);
     return;
   }
   const seq=state.seq;
@@ -1256,7 +1122,7 @@ window.addEventListener('message',function(e){
         :fetch(location.href,{cache:'no-store'}).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.blob(); });
       selfFetch.then(function(b){
         saveBlob('Kalm.html',b);
-        showStatus('Copia local guardada como Kalm.html: ábrela con doble clic y visuales abrirá directo, sin bloqueos del hosting https.','ok',true);
+        showStatus('Copia local guardada como Kalm.html: ábrela con doble clic.','ok',true);
       }).catch(function(e){ showStatus('Copia local: '+errMsg(e),'warn',true); });
     }
     else if(d.action==='retry'&&state.current){ navigate(state.current,{raw:true,push:false}); }
@@ -1298,14 +1164,13 @@ $('modeBadge').addEventListener('click',function(){
   const next=state.mode==='direct'?'proxy':'direct';
   const h=hostOf(state.current);
   if(next==='proxy'&&isCuHost(state.current)){
-    /* v4.3: ni siquiera se intenta. Los .cu son geo-bloqueados por todos los proxies. */
-    showStatus('«'+h+'» es un dominio .cu: los relays extranjeros reciben geo-bloqueo (302 → oops) o 522/429 — re-verificado hoy con 3 relays. DIRECTO —nativo, desde tu red— es la única vía y ya está activo. Si lo que ves dentro es un 403, el servidor rechazó TU red/IP: cambia de red, renueva tu IP o espera.','warn',true);
+    showStatus('«'+h+'» es .cu: los relays extranjeros reciben geo-bloqueo. DIRECTO es la única vía.','warn',true);
     return;
   }
   if(h){ prefs[h]=next; savePrefs(); }
   navigate(state.current,{raw:true,push:false,mode:next});
   showStatus(next==='direct'
-    ?'Modo DIRECTO: el sitio carga nativo en el marco (sin intermediarios).'
+    ?'Modo DIRECTO: el sitio carga nativo en el marco.'
     :'Modo PROXY: el HTML se descarga por un proxy y se reescribe.','info');
 });
 document.addEventListener('keydown',function(e){
@@ -1357,8 +1222,8 @@ $('btnCloseCfg').addEventListener('click',function(){ $('overlay').classList.rem
 $('overlay').addEventListener('click',function(e){ if(e.target.id==='overlay') $('overlay').classList.remove('show'); });
 $('btnSave').addEventListener('click',function(){
   let h=$('inHome').value.trim()||DEFAULT_HOME;
-  if(!/^(https?|ftp):\/\//i.test(h)) h=(/\.cu$/i.test(h)&&!/\.uclv\.edu\.cu$/i.test(h)&&!/\.uclv\.cu$/i.test(h))?'http://'+h:'https://'+h; /* v4.5: *.uclv.cu con https (TLS válido) */
-  settings.home=canonUrl(h); /* v4.3: el inicio guardado también se normaliza a *.uclv.cu */
+  if(!/^(https?|ftp):\/\//i.test(h)) h=(/\.cu$/i.test(h)&&!/\.uclv\.edu\.cu$/i.test(h)&&!/\.uclv\.cu$/i.test(h))?'http://'+h:'https://'+h;
+  settings.home=canonUrl(h);
   settings.scripts=$('inScripts').checked;
   settings.custom=$('inCustom').value.trim();
   settings.cpKey=$('inCpKey').value.trim();
@@ -1376,7 +1241,7 @@ $('btnReset').addEventListener('click',function(){
   location.reload();
 });
 $('btnProbe').addEventListener('click',async function(){
-  showStatus('Probando transportes contra example.com (una petición por transporte)…','info');
+  showStatus('Probando transportes contra example.com…','info');
   let ok=0;
   for(const p of PROXIES){
     if(!p.enabled()) continue;
@@ -1386,12 +1251,12 @@ $('btnProbe').addEventListener('click',async function(){
     }catch(e){ markFail(p.id,e&&e.status===429); }
   }
   renderTransportInfo();
-  showStatus('Prueba terminada: '+ok+' de '+PROXIES.length+' transportes responden. Detalles en la lista de arriba.',ok?'ok':'warn',true);
+  showStatus('Prueba terminada: '+ok+' de '+PROXIES.length+' transportes responden.','ok'?'ok':'warn',true);
 });
 
 /* ════════════════ 15. Arranque ════════════════ */
 window.addEventListener('DOMContentLoaded',function(){
-  console.log('[KALM] Prx-KALM v'+KALM_VERSION+' — política .cu: SIEMPRE modo directo (relays extranjeros: 302 → oops o 522/429, re-verificado) · *.uclv.edu.cu → *.uclv.cu · *.uclv.cu con https en la barra · un 403 del sitio = el servidor rechazó tu red (cambia de red/IP o espera; el diagnóstico ofrece la variante .edu.cu) · google/youtube/facebook → proxy (X-Frame-Options). Inicio: '+settings.home);
+  console.log('[KALM] Prx-KALM v'+KALM_VERSION+' — proxy: HTML por relay, assets directos del origen. .cu → directo. Con proxy propio, internacional → proxy (XFO). Inicio: '+settings.home);
   setButtons();
   showStatus('Prx-KALM v'+KALM_VERSION+' lista. Inicio: '+settings.home,'info');
   navigate(settings.home,{raw:true});
